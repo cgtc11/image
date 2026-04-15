@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AEmini</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#0d0d0d;color:#ddd}
+#app{display:flex;flex-direction:column;height:100vh}
+#toolbar{display:flex;align-items:center;gap:5px;padding:5px 10px;background:#181818;border-bottom:1px solid #252525;flex-shrink:0;flex-wrap:wrap}
+.btn{background:#1e1e1e;border:1px solid #303030;border-radius:5px;padding:4px 10px;color:#ccc;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;transition:background .1s}
+.btn:hover{background:#272727;border-color:#444}
+.btn:active{transform:scale(.97)}
+.btn.grn{background:#0e3020;border-color:#206040;color:#6df0a0}.btn.grn:hover{background:#143828}
+.btn.sm{padding:3px 7px;font-size:11px}
+.btn.red{border-color:#4a1f1f;color:#f07070}.btn.red:hover{background:#2a1010}
+.btn.act{border-color:#2e6ea6;color:#7ec8ff;background:#0e1e30}
+.sep{width:1px;height:18px;background:#252525;flex-shrink:0}
+.lbl{font-size:11px;color:#666;display:flex;align-items:center;gap:4px}
+.lbl input[type=number]{background:#181818;border:1px solid #2e2e2e;color:#ccc;border-radius:4px;padding:2px 5px;font-size:12px;width:52px}
+.lbl select{background:#181818;border:1px solid #2e2e2e;color:#ccc;border-radius:4px;padding:3px 5px;font-size:12px}
+.lbl input[type=range]{accent-color:#2e6ea6;width:80px}
+#timeDisp{font-family:monospace;font-size:13px;color:#5af;min-width:100px;letter-spacing:.05em}
+#main{display:flex;flex:1;overflow:hidden}
+/* Assets */
+#assets{width:180px;flex-shrink:0;background:#141414;border-right:1px solid #222;display:flex;flex-direction:column;overflow:hidden}
+#assets-hdr{padding:5px 8px;font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;justify-content:space-between}
+#assetList{flex:1;overflow-y:auto;padding:3px}
+.a-sec{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.07em;padding:4px 6px 2px;margin-top:4px}
+.a-item{padding:3px 6px;border-radius:3px;margin-bottom:1px;border:1px solid transparent;display:flex;align-items:center;gap:4px;cursor:grab;user-select:none}
+.a-item:hover{background:#1e1e1e;border-color:#2a2a2a}
+.a-item.stub-item{opacity:.6}
+.a-name{font-size:11px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.a-del{font-size:11px;color:#553333;cursor:pointer;flex-shrink:0;padding:1px 3px;border-radius:2px}
+.a-del:hover{background:#2a0a0a;color:#ff6060}
+.badge{font-size:9px;padding:1px 4px;border-radius:2px;flex-shrink:0;font-weight:700;letter-spacing:.03em}
+.b-seq{background:#0d2a40;color:#6ab0e0}.b-vid{background:#0d2a15;color:#6ad07a}
+.b-aud{background:#250d35;color:#c07ad0}.b-img{background:#252010;color:#d0b060}
+.b-miss{background:#2a1800;color:#c08030}.b-comp{background:#1a1040;color:#a080f0}
+.b-solid{background:#1e1e30;color:#a0a0d0}
+.folder-hdr{display:flex;align-items:center;gap:4px;padding:3px 5px;cursor:pointer;border-radius:3px;border:1px solid transparent;margin-bottom:1px;user-select:none}
+.folder-hdr:hover{background:#1e1e1e;border-color:#2a2a2a}
+.folder-hdr.drop-hi{background:#0e2a0e;border-color:#2a602a}
+.folder-toggle{font-size:10px;color:#555;width:12px;text-align:center;flex-shrink:0}
+.folder-name{font-size:11px;color:#888;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.folder-del{font-size:11px;color:#553333;cursor:pointer;flex-shrink:0;padding:1px 3px;border-radius:2px}
+.folder-del:hover{background:#2a0a0a;color:#ff6060}
+.folder-contents{padding-left:10px}
+.stub-reimport{font-size:10px;color:#c08030;cursor:pointer;border:1px solid #4a3010;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap}
+.stub-reimport:hover{background:#2a1a00}
+.assets-btns{padding:5px;border-top:1px solid #1e1e1e;display:flex;flex-direction:column;gap:3px}
+/* Center */
+#center{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#pvBar{display:flex;align-items:center;gap:4px;padding:3px 8px;background:#141414;border-bottom:1px solid #1e1e1e;flex-shrink:0}
+#pvBar span{font-size:11px;color:#555;margin-right:2px}
+.zoom-btn{font-size:11px;padding:2px 7px;background:#1e1e1e;border:1px solid #2e2e2e;border-radius:4px;color:#aaa;cursor:pointer}
+.zoom-btn:hover{background:#272727;color:#ddd}.zoom-btn.act{border-color:#2e6ea6;color:#7ec8ff;background:#0e1e30}
+#pvWrap{background:#111;display:flex;align-items:center;justify-content:center;overflow:auto;flex:0 0 auto;border-bottom:none;position:relative;padding:10px}
+#pvResizer{height:5px;background:#1e1e1e;border-top:1px solid #252525;border-bottom:1px solid #252525;cursor:ns-resize;flex-shrink:0;transition:background .1s}
+#pvResizer:hover{background:#2e6ea6}
+#pvCanvas{display:block;cursor:crosshair;image-rendering:auto;max-width:100%;max-height:300px}
+/* チェック模様の透過背景 */
+#pvCheckerWrap{position:relative;display:inline-block;line-height:0}
+#pvChecker{position:absolute;inset:0;background-image:linear-gradient(45deg,#3a3a3a 25%,transparent 25%),linear-gradient(-45deg,#3a3a3a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#3a3a3a 75%),linear-gradient(-45deg,transparent 75%,#3a3a3a 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0px;pointer-events:none;z-index:0}
+#pvCanvas{position:relative;z-index:1}
+#pvTime{position:absolute;bottom:6px;right:10px;background:rgba(0,0,0,.75);color:#fff;font-size:11px;font-family:monospace;padding:2px 7px;border-radius:3px;pointer-events:none}
+/* Comp tabs - AE style */
+#tl{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#compTabs{display:flex;align-items:stretch;background:#0d0d0d;border-bottom:1px solid #252525;flex-shrink:0;overflow-x:auto;min-height:28px}
+#compTabs::-webkit-scrollbar{height:3px}
+.comp-tab{padding:0 10px;font-size:12px;cursor:pointer;color:#555;border-right:1px solid #1e1e1e;display:flex;align-items:center;gap:5px;white-space:nowrap;user-select:none;position:relative}
+.comp-tab:hover{background:#141414;color:#aaa}
+.comp-tab.act{background:#181818;color:#ddd;border-top:2px solid #2e6ea6}
+.comp-tab-del{font-size:10px;color:#444;padding:1px 3px;border-radius:2px;line-height:1}
+.comp-tab-del:hover{background:#2a0a0a;color:#f07070}
+.comp-add{padding:0 12px;font-size:18px;cursor:pointer;color:#444;display:flex;align-items:center;flex-shrink:0}
+.comp-add:hover{color:#aaa;background:#141414}
+#tlHdr{padding:3px 8px;background:#141414;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:5px;flex-shrink:0}
+#tlHdr span{font-size:11px;color:#444;flex:1}
+#tlBody{flex:1;display:flex;overflow:hidden;min-height:0}
+#tlLeft{width:75px;flex-shrink:0;background:#141414;border-right:1px solid #1e1e1e;display:flex;flex-direction:column;overflow:hidden}
+#tlLblRuler{height:24px;border-bottom:1px solid #1e1e1e;flex-shrink:0}
+#tlLblRows{flex:1;overflow:hidden}
+#tlRight{flex:1;overflow:auto;position:relative}
+#tlInner{position:relative;min-width:100%}
+#ruler{position:sticky;top:0;z-index:10;background:#181818;border-bottom:1px solid #252525;height:24px;cursor:crosshair}
+#rulerCanvas{display:block}
+.tl-row{height:44px;border-bottom:1px solid #1e1e1e;position:relative;flex-shrink:0}
+.tl-row.drop-hi{background:rgba(46,110,166,.09)}
+.lbl-row{height:44px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;padding:0 5px;gap:3px;flex-shrink:0}
+.lbl-row span{font-size:11px;color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbl-del{font-size:11px;color:#662222;cursor:pointer;width:14px;text-align:center;border-radius:2px}
+.lbl-del:hover{background:#2a0a0a;color:#ff6060}
+.lbl-eye{cursor:pointer;width:18px;height:18px;text-align:center;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;user-select:none;font-style:normal}
+.lbl-eye:hover{background:#252525}
+.lbl-eye.on{color:#bbb}
+.lbl-eye.off{color:#c04040}
+.clip{position:absolute;top:4px;height:36px;border-radius:4px;cursor:grab;overflow:hidden;border:1px solid;display:flex;align-items:center;padding:0 8px;user-select:none;min-width:6px}
+.clip.sel{outline:2px solid #55aaff;outline-offset:1px;z-index:5}
+.clip.remap{background-image:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,100,.06) 4px,rgba(255,255,100,.06) 8px) !important}
+.clip-lbl{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;font-weight:500;flex:1}
+.rsz-r,.rsz-l{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;background:rgba(255,255,255,.13);flex-shrink:0}
+.rsz-r{right:0}.rsz-l{left:0}
+.rsz-r:hover,.rsz-l:hover{background:rgba(255,255,255,.3)}
+#playhead{position:absolute;top:0;width:2px;background:#ff3333;z-index:20;pointer-events:none;transform:translateX(-1px)}
+#playhead::before{content:'';position:absolute;top:0;left:-4px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #ff3333}
+#props{width:210px;flex-shrink:0;background:#141414;border-left:1px solid #1e1e1e;overflow-y:auto;padding:8px}
+#props h3{font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.ps{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid #1e1e1e}
+.pr{margin-bottom:8px}
+.pl{font-size:11px;color:#666;display:flex;justify-content:space-between;margin-bottom:3px}
+.pl span{color:#aaa;font-family:monospace;font-size:11px}
+.pr input[type=range]{width:100%;accent-color:#2e6ea6;cursor:pointer}
+#noSel{font-size:12px;color:#444;line-height:1.8}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.87);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.overlay.show{display:flex}
+.overlay>p{font-size:14px;color:#aaa}
+.prog-bar{width:300px;height:5px;background:#222;border-radius:3px}
+.prog-fill{height:100%;background:#2e6ea6;border-radius:3px;width:0;transition:width .08s}
+.prog-sub{font-size:12px;color:#555;margin-top:-8px}
+#expModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:990;align-items:center;justify-content:center}
+#expModal.show{display:flex}
+.exp-box{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:22px 24px;width:360px}
+.exp-box h2{font-size:14px;font-weight:500;margin-bottom:14px;color:#eee}
+.exp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px}
+.exp-row label{color:#888}
+.exp-row select,.exp-row span{background:transparent;border:none;color:#aaa;font-size:12px}
+.exp-row select{background:#111;border:1px solid #2e2e2e;color:#ccc;border-radius:4px;padding:3px 6px}
+.exp-info{font-size:11px;color:#555;margin:10px 0 14px;line-height:1.7;white-space:pre-wrap}
+.exp-btns{display:flex;gap:8px;justify-content:flex-end}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#111}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#383838}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="toolbar">
+  <button class="btn" id="btnUndo" onclick="undo()" title="Ctrl+Z" style="opacity:.4" disabled>↩</button>
+  <button class="btn" id="btnRedo" onclick="redo()" title="Ctrl+Y" style="opacity:.4" disabled>↪</button>
+  <div class="sep"></div>
+  <button class="btn" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
+  <button class="btn" onclick="stopAll()">■</button>
+  <span id="timeDisp">0f</span>
+  <div class="sep"></div>
+  <label class="lbl">解像度
+    <select id="selRes" onchange="onResSelect(this.value)" style="width:90px">
+      <option value="1920x1080">1920×1080</option>
+      <option value="1280x720">1280×720</option>
+      <option value="custom">カスタム</option>
+    </select>
+    <input type="number" id="inResW" value="1920" min="1" max="7680" style="width:52px" oninput="applyCustomRes()">
+    <span style="color:#555">×</span>
+    <input type="number" id="inResH" value="1080" min="1" max="4320" style="width:52px" oninput="applyCustomRes()">
+  </label>
+  <label class="lbl">FPS<input type="number" id="inFps" value="24" min="1" max="120" onchange="S.fps=+this.value;rebuildTl()"></label>
+  <label class="lbl">尺(秒)<input type="number" id="inDur" value="10" min="1" max="3600" onchange="setActiveDur(+this.value)"></label>
+  <button class="btn act" id="btnTimeMode" onclick="toggleTimeMode()" title="フレーム/秒 切替">F</button>
+  <div class="sep"></div>
+  <button class="btn" onclick="saveProject()">💾 保存</button>
+  <button class="btn" onclick="openProject()">📂 読込</button>
+  <div class="sep"></div>
+  <button class="btn grn" onclick="showExpModal()">▤ MP4書き出し</button>
+  <div style="margin-left:auto">
+    <label class="lbl">ズーム<input type="range" min="10" max="700" value="120" oninput="S.pxPerSec=+this.value;rebuildTl()"></label>
+  </div>
+</div>
+
+<div id="main">
+  <div id="assets">
+    <div id="assets-hdr">素材パネル <button class="btn sm" onclick="createFolder()" title="新規フォルダ">📁+</button></div>
+    <div id="assetList"></div>
+    <div class="assets-btns">
+      <button class="btn sm" onclick="importImgFSA()">単/連番素材を追加</button>
+      <button class="btn sm" onclick="importVidFSA()">MP4動画を追加</button>
+      <button class="btn sm" onclick="importAudFSA()">音楽を追加</button>
+      <button class="btn sm" onclick="createSolid()">平面を作成</button>
+    </div>
+  </div>
+
+  <div id="center">
+    <div id="pvBar">
+      <span>表示:</span>
+      <button class="zoom-btn act" id="zFit" onclick="setPvZoom('fit')">Fit</button>
+      <button class="zoom-btn" id="z25" onclick="setPvZoom(0.25)">25%</button>
+      <button class="zoom-btn" id="z50" onclick="setPvZoom(0.5)">50%</button>
+      <button class="zoom-btn" id="z100" onclick="setPvZoom(1.0)">100%</button>
+      <span style="margin-left:8px;font-size:11px;color:#444">選択クリップ → プレビューでドラッグ移動/コーナーでスケール</span>
+    </div>
+    <div id="pvWrap">
+      <div id="pvCheckerWrap">
+        <div id="pvChecker"></div>
+        <canvas id="pvCanvas" width="1920" height="1080"></canvas>
+      </div>
+      <div id="pvTime">0f</div>
+    </div>
+    <div id="pvResizer" title="ドラッグでプレビュー/タイムラインサイズ調整"></div>
+    <div id="tl">
+      <div id="compTabs"></div>
+      <div id="tlHdr">
+        <span>素材→ドラッグ配置 ／ クリップドラッグ=移動 ／ 端=トリミング ／ Shift+端=タイムリマップ ／ Shift+ドラッグ=スナップ ／ Shift+Ctrl+D=分割</span>
+        <button class="btn sm" onclick="addVLayer()">+映像</button>
+        <button class="btn sm" onclick="addATrack()">+音声</button>
+      </div>
+      <div id="tlBody">
+        <div id="tlLeft">
+          <div id="tlLblRuler"></div>
+          <div id="tlLblRows"></div>
+        </div>
+        <div id="tlRight">
+          <div id="tlInner">
+            <div id="ruler"><canvas id="rulerCanvas"></canvas></div>
+            <div id="playhead"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="props">
+    <h3>プロパティ</h3>
+    <div id="propsInner"><div id="noSel">クリップを選択するか<br>素材をタイムラインへ<br>ドロップしてください</div></div>
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="loadOvl">
+  <p id="loadMsg">処理中...</p>
+  <div class="prog-bar"><div class="prog-fill" id="loadFill"></div></div>
+  <p class="prog-sub" id="loadSub"></p>
+</div>
+
+<div id="expModal">
+  <div class="exp-box">
+    <h2>MP4書き出し（アクティブなコンポ）</h2>
+    <div class="exp-row"><label>解像度</label><span id="expResLbl"></span></div>
+    <div class="exp-row"><label>FPS</label><span id="expFpsLbl"></span></div>
+    <div class="exp-row"><label>映像ビットレート</label>
+      <select id="expBitrate">
+        <option value="4000000">4 Mbps</option>
+        <option value="8000000" selected>8 Mbps (標準)</option>
+        <option value="16000000">16 Mbps</option>
+        <option value="30000000">30 Mbps</option>
+      </select>
+    </div>
+    <div class="exp-info" id="expInfo"></div>
+    <div class="exp-btns">
+      <button class="btn" onclick="hideExpModal()">キャンセル</button>
+      <button class="btn grn" onclick="startExport()">書き出し開始</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fi-seq" multiple accept="image/*" style="display:none">
+<input type="file" id="fi-vid" accept="video/*" style="display:none">
+<input type="file" id="fi-aud" accept="audio/*" style="display:none">
+<input type="file" id="fi-proj" accept=".json" style="display:none">
+
+<!-- Comp creation modal -->
+<div id="addCompModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:20px 22px;width:300px;">
+    <div style="font-size:13px;font-weight:500;color:#eee;margin-bottom:14px;">新規コンポを作成</div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">コンポ名</label>
+      <input type="text" id="newCompName" style="width:100%;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:5px 8px;font-size:12px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">解像度</label>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <select id="newCompResPreset" onchange="onNewCompResPreset(this.value)" style="background:#111;border:1px solid #2e2e2e;color:#ccc;border-radius:4px;padding:4px 6px;font-size:12px;">
+          <option value="1920x1080">1920×1080</option>
+          <option value="1280x720">1280×720</option>
+          <option value="custom">カスタム</option>
+        </select>
+        <input type="number" id="newCompW" value="1920" min="1" max="7680" style="width:58px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:4px 5px;font-size:12px;">
+        <span style="color:#555">×</span>
+        <input type="number" id="newCompH" value="1080" min="1" max="4320" style="width:58px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:4px 5px;font-size:12px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="g('addCompModal').style.display='none'" style="background:#1e1e1e;border:1px solid #333;border-radius:5px;padding:5px 14px;color:#aaa;cursor:pointer;font-size:12px;">キャンセル</button>
+      <button onclick="confirmAddComp()" style="background:#163a5e;border:1px solid #2e6ea6;border-radius:5px;padding:5px 14px;color:#7ec8ff;cursor:pointer;font-size:12px;">作成</button>
+    </div>
+  </div>
+</div>
+<div id="solidModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:20px 22px;width:280px;">
+    <div style="font-size:13px;font-weight:500;color:#eee;margin-bottom:14px;">平面を作成</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <label style="font-size:12px;color:#888;white-space:nowrap;">色を選択</label>
+      <input type="color" id="solidColorPick" value="#000000" oninput="onSolidColorInput(this.value)" style="width:50px;height:30px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;">
+      <div id="solidPreview" style="flex:1;height:30px;border-radius:4px;border:1px solid #333;background:#000000;"></div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">平面名</label>
+      <input type="text" id="solidName" oninput="this._edited=true" style="width:100%;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:5px 8px;font-size:12px;box-sizing:border-box;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="hideSolidModal()" style="background:#1e1e1e;border:1px solid #333;border-radius:5px;padding:5px 14px;color:#aaa;cursor:pointer;font-size:12px;">キャンセル</button>
+      <button onclick="confirmSolid()" style="background:#163a5e;border:1px solid #2e6ea6;border-radius:5px;padding:5px 14px;color:#7ec8ff;cursor:pointer;font-size:12px;">作成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────
+var TRACK_H=44,RULER_H=24;
+var CLIP_COLORS=['#1b3a68','#1a4a28','#4e1a10','#321068','#3d3c10','#0e3a3a','#4a1235','#26400e'];
+var CW=1920,CH=1080;
+var C=document.getElementById('pvCanvas');
+var ctx=C.getContext('2d',{alpha:true});
+var pvZoom='fit';
+var isExporting=false;
+// File System Access API: only usable in top-level window (not iframe)
+var canFSA=!!(window.showOpenFilePicker&&window.self===window.top);
+
+// ─── IndexedDB ────────────────────────────────────────────────────────────
+var _db=null;
+function getDB(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise(function(res,rej){
+    var req=indexedDB.open('tlv5-handles',1);
+    req.onupgradeneeded=function(e){e.target.result.createObjectStore('h');};
+    req.onsuccess=function(e){_db=e.target.result;res(_db);};
+    req.onerror=function(){rej(new Error('IDB open failed'));};
+  });
+}
+async function dbPut(k,v){try{var db=await getDB();return new Promise(function(res,rej){var tx=db.transaction('h','readwrite');tx.objectStore('h').put(v,k);tx.oncomplete=res;tx.onerror=rej;});}catch(e){console.warn('dbPut',e);}}
+async function dbGet(k){try{var db=await getDB();return new Promise(function(res){var tx=db.transaction('h','readonly');var req=tx.objectStore('h').get(k);req.onsuccess=function(){res(req.result);};req.onerror=function(){res(null);};});}catch(e){return null;}}
+async function dbGranted(h){try{var p=await h.queryPermission({mode:'read'});if(p==='granted')return true;p=await h.requestPermission({mode:'read'});return p==='granted';}catch(e){return false;}}
+
+// ─── State ────────────────────────────────────────────────────────────────
+var S={
+  fps:24,pxPerSec:120,timeMode:'frame',
+  time:0,playing:false,selId:null,
+  comps:[],activeCompId:null,
+  assets:[],folders:[],_nid:1,
+  projId:'p'+Date.now()
+};
+
+// Active comp accessor
+function AC(){return S.comps.find(function(c){return c.id===S.activeCompId;})||S.comps[0];}
+
+// ─── Undo / Redo ──────────────────────────────────────────────────────────
+var _hist=[],_histIdx=-1,MAX_HIST=60;
+function snapState(){return JSON.stringify({comps:S.comps,activeCompId:S.activeCompId});}
+function pushHistory(){
+  _hist=_hist.slice(0,_histIdx+1);
+  _hist.push(snapState());
+  if(_hist.length>MAX_HIST)_hist.shift();
+  _histIdx=_hist.length-1;
+  updateUndoUI();
+}
+function undo(){if(_histIdx<=0)return;_histIdx--;applySnap(JSON.parse(_hist[_histIdx]));}
+function redo(){if(_histIdx>=_hist.length-1)return;_histIdx++;applySnap(JSON.parse(_hist[_histIdx]));}
+function applySnap(state){
+  S.comps=state.comps; S.activeCompId=state.activeCompId;
+  S.selId=null; renderCompTabs(); rebuildTl(); renderProps(); updateUndoUI();
+}
+function updateUndoUI(){
+  var u=g('btnUndo'),r=g('btnRedo');
+  if(u){u.disabled=_histIdx<=0;u.style.opacity=_histIdx<=0?'0.4':'1';}
+  if(r){r.disabled=_histIdx>=_hist.length-1;r.style.opacity=_histIdx>=_hist.length-1?'0.4':'1';}
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function nid(){return S._nid++;}
+function g(id){return document.getElementById(id);}
+function findAsset(id){return S.assets.find(function(a){return a.id===id;});}
+function findClip(id){
+  var c=AC();if(!c)return null;
+  return c.clips.find(function(cl){return cl.id===id;})||c.aClips.find(function(cl){return cl.id===id;});
+}
+function isAClip(id){var c=AC();if(!c)return false;return !!c.aClips.find(function(cl){return cl.id===id;});}
+function timeToX(t){return t*S.pxPerSec;}
+function xToTime(x){return x/S.pxPerSec;}
+function maxSrc(a){
+  if(!a)return 9999;
+  if(a.type==='seq'||a.type==='img')return a.frames&&a.frames.length?a.frames.length/(a.seqFps||S.fps):9999;
+  return a.duration||9999;
+}
+function tick(){return new Promise(function(r){setTimeout(r,0);});}
+function snapToFrame(t){if(!S.fps)return t;return Math.round(t*S.fps)/S.fps;}
+function setActiveDur(v){var c=AC();if(c){c.dur=+v;}rebuildTl();}
+
+// ─── Time format ──────────────────────────────────────────────────────────
+function fmtTime(t){
+  var totalF=Math.round(t*S.fps);
+  if(S.timeMode==='frame')return totalF+'f';
+  var ff=totalF%S.fps,totalSec=Math.floor(totalF/S.fps),ss=totalSec%60,mm=Math.floor(totalSec/60);
+  var ffStr=(''+ff).padStart(2,'0');
+  return mm>0?mm+'分'+(''+ss).padStart(2,'0')+'秒'+ffStr+'f':ss+'秒'+ffStr+'f';
+}
+function toggleTimeMode(){
+  S.timeMode=S.timeMode==='frame'?'sec':'frame';
+  g('btnTimeMode').textContent=S.timeMode==='frame'?'F':'S';
+  g('btnTimeMode').classList.toggle('act',S.timeMode==='frame');
+  S.time=snapToFrame(S.time);
+  rebuildTl();updateTimeDisp();
+}
+
+// ─── Resolution / PvZoom ──────────────────────────────────────────────────
+function changeRes(v){var p=v.split('x');CW=+p[0];CH=+p[1];C.width=CW;C.height=CH;var c=AC();if(c){c.width=CW;c.height=CH;}setPvZoom(pvZoom);}
+function onResSelect(v){
+  if(v!=='custom'){
+    var p=v.split('x');
+    g('inResW').value=p[0]; g('inResH').value=p[1];
+    changeRes(v);
+  }
+}
+function applyCustomRes(){
+  var w=parseInt(g('inResW').value)||1920;
+  var h=parseInt(g('inResH').value)||1080;
+  CW=w; CH=h; C.width=CW; C.height=CH;
+  var c=AC();if(c){c.width=CW;c.height=CH;}
+  setPvZoom(pvZoom);
+  g('selRes').value='custom';
+}
+function setPvZoom(z){
+  pvZoom=z;
+  ['zFit','z25','z50','z100'].forEach(function(id){g(id).classList.remove('act');});
+  if(z==='fit'){
+    g('zFit').classList.add('act');
+    C.style.width='';C.style.height='';C.style.maxWidth='100%';C.style.maxHeight='300px';
+  } else {
+    var m={0.25:'z25',0.5:'z50',1.0:'z100'};if(m[z])g(m[z]).classList.add('act');
+    C.style.maxWidth='none';C.style.maxHeight='none';
+    C.style.width=Math.round(CW*z)+'px';C.style.height=Math.round(CH*z)+'px';
+  }
+  // チェッカーをキャンバスと同サイズに同期
+  var chk=g('pvChecker');
+  if(chk){chk.style.width=C.style.width||'';chk.style.height=C.style.height||'';}
+}
+function screenToCanvas(e){var r=C.getBoundingClientRect();return{x:(e.clientX-r.left)*CW/r.width,y:(e.clientY-r.top)*CH/r.height};}
+function handleRadius(){var r=C.getBoundingClientRect();return 14*CW/r.width;}
+
+// ─── Preview / Timeline resizer ───────────────────────────────────────────
+(function(){
+  var resizer=document.getElementById('pvResizer');
+  var pvWrap=document.getElementById('pvWrap');
+  var _rDrag=false,_rStartY=0,_rStartH=0;
+  resizer.addEventListener('mousedown',function(e){
+    _rDrag=true;_rStartY=e.clientY;_rStartH=pvWrap.offsetHeight;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(!_rDrag)return;
+    var newH=Math.max(60,Math.min(700,_rStartH+(e.clientY-_rStartY)));
+    pvWrap.style.maxHeight=newH+'px';
+    pvWrap.style.height=newH+'px';
+    setPvZoom(pvZoom);
+  });
+  document.addEventListener('mouseup',function(){_rDrag=false;});
+})();
+
+// ─── Loading overlay ──────────────────────────────────────────────────────
+function showLoad(msg,sub,pct){g('loadMsg').textContent=msg||'処理中...';g('loadSub').textContent=sub||'';g('loadFill').style.width=((pct||0)*100)+'%';g('loadOvl').classList.add('show');}
+function setLoad(pct,msg,sub){g('loadFill').style.width=(pct*100)+'%';if(msg)g('loadMsg').textContent=msg;if(sub!==undefined)g('loadSub').textContent=sub;}
+function hideLoad(){g('loadOvl').classList.remove('show');}
+
+// ─── Import ───────────────────────────────────────────────────────────────
+async function processImgItems(items,storeH){
+  items=Array.from(items);
+  items.sort(function(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true});});
+  var isSingle=items.length===1,firstName=items[0].name;
+  showLoad(isSingle?'画像読み込み中...':'連番読み込み中...','0/'+items.length,0);
+  var frames=[];
+  for(var i=0;i<items.length;i++){
+    try{var file=typeof items[i].getFile==='function'?await items[i].getFile():items[i];frames.push(await createImageBitmap(file));}catch(e){}
+    if(i%8===0){setLoad((i+1)/items.length,null,(i+1)+'/'+items.length);await tick();}
+  }
+  hideLoad();
+  if(!frames.length){alert('画像を読み込めませんでした');return;}
+  var aid=nid();
+  S.assets.push({id:aid,type:isSingle?'img':'seq',name:firstName,displayName:firstName,
+    frames:frames,seqFps:S.fps,duration:isSingle?9999:frames.length/S.fps,frameCount:frames.length});
+  if(storeH){
+    await dbPut(S.projId+':'+aid+':n',items.length);
+    for(var j=0;j<items.length;j++){if(typeof items[j].getFile==='function')await dbPut(S.projId+':'+aid+':'+j,items[j]);}
+  }
+  renderAssets();
+}
+async function importImgFSA(){
+  if(!canFSA){g('fi-seq').click();return;}
+  try{var hs=await window.showOpenFilePicker({multiple:true,startIn:'desktop',types:[{description:'画像ファイル',accept:{'image/*':[]}}]});await processImgItems(hs,true);}
+  catch(e){if(e.name!=='AbortError'){console.warn(e);g('fi-seq').click();}}
+}
+async function importVidFSA(){
+  if(!canFSA){g('fi-vid').click();return;}
+  try{
+    var hs=await window.showOpenFilePicker({startIn:'desktop',types:[{description:'動画ファイル',accept:{'video/*':[]}}]});
+    var h=hs[0],file=await h.getFile(),url=URL.createObjectURL(file);
+    var ve=document.createElement('video');ve.src=url;ve.preload='auto';
+    await new Promise(function(r){ve.onloadedmetadata=r;ve.onerror=r;});
+    var aid=nid();
+    S.assets.push({id:aid,type:'vid',name:file.name,displayName:file.name,videoEl:ve,duration:ve.duration,srcUrl:url});
+    await dbPut(S.projId+':'+aid+':n',1);await dbPut(S.projId+':'+aid+':0',h);
+    renderAssets();
+  }catch(e){if(e.name!=='AbortError'){console.warn(e);g('fi-vid').click();}}
+}
+async function importAudFSA(){
+  if(!canFSA){g('fi-aud').click();return;}
+  try{
+    var hs=await window.showOpenFilePicker({startIn:'desktop',types:[{description:'音楽ファイル',accept:{'audio/*':[]}}]});
+    var h=hs[0],file=await h.getFile(),url=URL.createObjectURL(file);
+    var ae=new Audio(url);ae.preload='auto';
+    await new Promise(function(r){ae.onloadedmetadata=r;ae.onerror=r;});
+    var aid=nid();
+    S.assets.push({id:aid,type:'aud',name:file.name,displayName:file.name,audioEl:ae,duration:ae.duration,srcUrl:url});
+    await dbPut(S.projId+':'+aid+':n',1);await dbPut(S.projId+':'+aid+':0',h);
+    renderAssets();
+  }catch(e){if(e.name!=='AbortError'){console.warn(e);g('fi-aud').click();}}
+}
+g('fi-seq').onchange=async function(){var f=Array.from(this.files);if(!f.length)return;await processImgItems(f,false);this.value='';};
+g('fi-vid').onchange=function(){var f=this.files[0];if(!f)return;var url=URL.createObjectURL(f);var ve=document.createElement('video');ve.src=url;ve.preload='auto';ve.onloadedmetadata=function(){S.assets.push({id:nid(),type:'vid',name:f.name,displayName:f.name,videoEl:ve,duration:ve.duration,srcUrl:url});renderAssets();};this.value='';};
+g('fi-aud').onchange=function(){var f=this.files[0];if(!f)return;var url=URL.createObjectURL(f);var ae=new Audio(url);ae.preload='auto';ae.onloadedmetadata=function(){S.assets.push({id:nid(),type:'aud',name:f.name,displayName:f.name,audioEl:ae,duration:ae.duration,srcUrl:url});renderAssets();};this.value='';};
+
+async function reimportStub(aid){
+  var a=findAsset(aid);if(!a||!a.stub)return;
+  var isImg=a.type==='img'||a.type==='seq';
+  if(canFSA){
+    try{
+      var opts={multiple:isImg,startIn:'desktop',types:[{description:'ファイル',accept:isImg?{'image/*':[]}:a.type==='vid'?{'video/*':[]}:{'audio/*':[]}}]};
+      var hs=await window.showOpenFilePicker(opts);
+      if(isImg){
+        hs.sort(function(x,y){return x.name.localeCompare(y.name,undefined,{numeric:true});});
+        showLoad('再リンク中...','0/'+hs.length,0);
+        var frames=[];
+        for(var i=0;i<hs.length;i++){var f=await hs[i].getFile();try{frames.push(await createImageBitmap(f));}catch(e){}if(i%8===0){setLoad((i+1)/hs.length,null,(i+1)+'/'+hs.length);await tick();}}
+        hideLoad();if(!frames.length)return;
+        a.frames=frames;a.frameCount=frames.length;a.stub=false;
+        await dbPut(S.projId+':'+aid+':n',hs.length);
+        for(var i=0;i<hs.length;i++)await dbPut(S.projId+':'+aid+':'+i,hs[i]);
+      } else if(a.type==='vid'){
+        var h=hs[0],file=await h.getFile(),url=URL.createObjectURL(file);
+        var ve=document.createElement('video');ve.src=url;ve.preload='auto';
+        await new Promise(function(r){ve.onloadedmetadata=r;});
+        a.videoEl=ve;a.duration=ve.duration;a.srcUrl=url;a.stub=false;
+        await dbPut(S.projId+':'+aid+':n',1);await dbPut(S.projId+':'+aid+':0',hs[0]);
+      } else {
+        var h=hs[0],file=await h.getFile(),url=URL.createObjectURL(file);
+        var ae=new Audio(url);ae.preload='auto';
+        await new Promise(function(r){ae.onloadedmetadata=r;});
+        a.audioEl=ae;a.duration=ae.duration;a.srcUrl=url;a.stub=false;
+        await dbPut(S.projId+':'+aid+':n',1);await dbPut(S.projId+':'+aid+':0',hs[0]);
+      }
+      renderAssets();rebuildTl();return;
+    }catch(e){if(e.name==='AbortError')return;console.warn(e);}
+  }
+  var fi=document.createElement('input');fi.type='file';fi.accept=isImg?'image/*':a.type==='vid'?'video/*':'audio/*';if(a.type==='seq')fi.multiple=true;
+  fi.onchange=async function(){
+    var files=Array.from(fi.files);if(!files.length)return;
+    if(isImg){files.sort(function(x,y){return x.name.localeCompare(y.name,undefined,{numeric:true});});showLoad('再リンク中...','',0);var frames=[];for(var i=0;i<files.length;i++){try{frames.push(await createImageBitmap(files[i]));}catch(e){}if(i%8===0){setLoad((i+1)/files.length,null,(i+1)+'/'+files.length);await tick();}}hideLoad();a.frames=frames;a.frameCount=frames.length;a.stub=false;}
+    else if(a.type==='vid'){var url=URL.createObjectURL(files[0]);var ve=document.createElement('video');ve.src=url;ve.preload='auto';await new Promise(function(r){ve.onloadedmetadata=r;});a.videoEl=ve;a.duration=ve.duration;a.srcUrl=url;a.stub=false;}
+    else{var url=URL.createObjectURL(files[0]);var ae=new Audio(url);ae.preload='auto';await new Promise(function(r){ae.onloadedmetadata=r;});a.audioEl=ae;a.duration=ae.duration;a.srcUrl=url;a.stub=false;}
+    renderAssets();rebuildTl();
+  };fi.click();
+}
+
+async function tryRestoreAsset(a){
+  try{
+    var count=await dbGet(S.projId+':'+a.id+':n');if(!count)return false;
+    var h0=await dbGet(S.projId+':'+a.id+':0');if(!h0||!await dbGranted(h0))return false;
+    if(a.type==='img'||a.type==='seq'){
+      var frames=[];
+      for(var i=0;i<count;i++){var h=await dbGet(S.projId+':'+a.id+':'+i);if(!h)break;var f=await h.getFile();try{frames.push(await createImageBitmap(f));}catch(e){}}
+      if(!frames.length)return false;a.frames=frames;a.frameCount=frames.length;a.stub=false;return true;
+    } else if(a.type==='vid'){
+      var f=await h0.getFile(),url=URL.createObjectURL(f);var ve=document.createElement('video');ve.src=url;ve.preload='auto';
+      await new Promise(function(r){ve.onloadedmetadata=r;ve.onerror=r;});a.videoEl=ve;a.duration=ve.duration||a.duration;a.srcUrl=url;a.stub=false;return true;
+    } else if(a.type==='aud'){
+      var f=await h0.getFile(),url=URL.createObjectURL(f);var ae=new Audio(url);ae.preload='auto';
+      await new Promise(function(r){ae.onloadedmetadata=r;ae.onerror=r;});a.audioEl=ae;a.duration=ae.duration||a.duration;a.srcUrl=url;a.stub=false;return true;
+    }
+  }catch(e){console.warn('restore failed',a.name,e);}
+  return false;
+}
+
+// ─── Folders ──────────────────────────────────────────────────────────────
+function createFolder(){var name=prompt('フォルダ名を入力してください','フォルダ'+(S.folders.length+1));if(!name)return;S.folders.push({id:nid(),name:name,open:true});renderAssets();}
+function renameFolder(id){var f=S.folders.find(function(f){return f.id===id;});if(!f)return;var n=prompt('フォルダ名を変更してください',f.name);if(n&&n.trim())f.name=n.trim();renderAssets();}
+function toggleFolder(id){var f=S.folders.find(function(f){return f.id===id;});if(f)f.open=!f.open;renderAssets();}
+function deleteFolder(id){S.assets.forEach(function(a){if(a.folderId===id)a.folderId=null;});S.folders=S.folders.filter(function(f){return f.id!==id;});renderAssets();}
+function assignToFolder(aid,fid){var a=findAsset(aid);if(a)a.folderId=fid||null;renderAssets();}
+
+// ─── Asset panel ──────────────────────────────────────────────────────────
+function renderAssets(){
+  var el=g('assetList');el.innerHTML='';
+  // Comps section at top
+  if(S.comps.length>0){
+    var sec=document.createElement('div');sec.className='a-sec';sec.textContent='コンポ';el.appendChild(sec);
+    S.comps.forEach(function(comp){
+      var d=document.createElement('div');d.className='a-item';d.draggable=true;
+      d.ondragstart=function(e){e.dataTransfer.setData('compId',''+comp.id);};
+      var badge=document.createElement('span');badge.className='badge b-comp';badge.textContent='COMP';
+      var name=document.createElement('span');name.className='a-name';name.textContent=comp.name;name.title=comp.name;
+      name.onclick=function(){setActiveComp(comp.id);};
+      name.style.cursor='pointer';
+      var ed=document.createElement('span');ed.className='folder-del';ed.textContent='✏';ed.title='名前を変更';
+      ed.style.color='#556633';
+      ed.onclick=function(e){e.stopPropagation();renameComp(comp.id);};
+      var del=document.createElement('span');del.className='a-del';del.textContent='✕';del.title='コンポを削除';
+      del.onclick=function(e){e.stopPropagation();removeComp(comp.id);};
+      d.appendChild(badge);d.appendChild(name);d.appendChild(ed);
+      if(S.comps.length>1)d.appendChild(del);
+      d.onclick=function(e){if(!e.defaultPrevented)showCompInfo(comp.id);};
+      el.appendChild(d);
+    });
+  }
+  // Assets (ungrouped)
+  var hasAssets=S.assets.some(function(a){return !a.folderId;});
+  if(hasAssets){
+    var sec2=document.createElement('div');sec2.className='a-sec';sec2.textContent='素材';el.appendChild(sec2);
+    S.assets.filter(function(a){return !a.folderId;}).forEach(function(a){el.appendChild(makeAssetEl(a));});
+  }
+  // Folders: parentFolderIdを持つものは入れ子で表示、持たないものがルートレベル
+  function renderFolderEl(folder, depth) {
+    var indent = depth * 10;
+    var fhdr=document.createElement('div');fhdr.className='folder-hdr';
+    fhdr.style.paddingLeft=(5+indent)+'px';
+    fhdr.ondragover=function(e){e.preventDefault();fhdr.classList.add('drop-hi');};
+    fhdr.ondragleave=function(){fhdr.classList.remove('drop-hi');};
+    fhdr.ondrop=function(e){e.preventDefault();fhdr.classList.remove('drop-hi');var aid=parseInt(e.dataTransfer.getData('panel-aid'),10);if(aid)assignToFolder(aid,folder.id);};
+    fhdr.innerHTML='<span class="folder-toggle">'+(folder.open?'▼':'▶')+'</span>'
+      +'<span class="folder-name">'+folder.name+'</span>'
+      +'<span class="folder-del" onclick="event.stopPropagation();renameFolder('+folder.id+')" title="名前変更" style="color:#556633">✏</span>'
+      +'<span class="folder-del" onclick="event.stopPropagation();deleteFolder('+folder.id+')" title="フォルダ削除">✕</span>';
+    fhdr.querySelector('.folder-toggle').onclick=fhdr.querySelector('.folder-name').onclick=function(e){e.stopPropagation();toggleFolder(folder.id);};
+    el.appendChild(fhdr);
+    if(folder.open){
+      var fc=document.createElement('div');fc.className='folder-contents';
+      // このフォルダ直下の素材
+      S.assets.filter(function(a){return a.folderId===folder.id;}).forEach(function(a){fc.appendChild(makeAssetEl(a));});
+      el.appendChild(fc);
+      // 子フォルダを再帰表示
+      S.folders.filter(function(f){return f.parentFolderId===folder.id;}).forEach(function(child){
+        renderFolderEl(child, depth+1);
+      });
+    }
+  }
+  // ルートフォルダ（parentFolderIdがないもの）だけを最上位に表示
+  S.folders.filter(function(f){return !f.parentFolderId;}).forEach(function(folder){
+    renderFolderEl(folder, 0);
+  });
+}
+
+function makeAssetEl(a){
+  var d=document.createElement('div');d.className='a-item'+(a.stub?' stub-item':'');
+  var bc=a.stub?'b-miss':a.type==='seq'?'b-seq':a.type==='img'?'b-img':a.type==='vid'?'b-vid':a.type==='solid'?'b-solid':'b-aud';
+  var bt=a.stub?'??':a.type==='seq'?'SEQ':a.type==='img'?'IMG':a.type==='vid'?'MP4':a.type==='solid'?'SOLID':'AUDIO';
+  var dname=a.displayName||a.name;
+  var dispName=a.type==='seq'&&dname.length>16?dname.substring(0,12)+'...'+dname.split('.').pop():dname;
+  d.draggable=!a.stub;
+  d.ondragstart=function(e){e.dataTransfer.setData('aid',''+a.id);e.dataTransfer.setData('panel-aid',''+a.id);};
+  d.onclick=function(e){if(!e.defaultPrevented)showAssetInfo(a.id);};
+  var badge=document.createElement('span');badge.className='badge '+bc;badge.textContent=bt;
+  var name=document.createElement('span');name.className='a-name';name.textContent=dispName;name.title=dname;
+  var del=document.createElement('span');del.className='a-del';del.textContent='✕';del.title='削除';
+  del.onclick=function(e){e.stopPropagation();deleteAsset(a.id);};
+  d.appendChild(badge);
+  // 平面はカラースウォッチを表示
+  if(a.type==='solid'&&a.color){
+    var sw=document.createElement('span');
+    sw.style.cssText='display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid #444;flex-shrink:0;background:'+a.color+';';
+    d.appendChild(sw);
+  }
+  if(a.stub){var ri=document.createElement('span');ri.className='stub-reimport';ri.textContent='リンク';ri.title='元ファイル名: '+a.originalName;ri.onclick=function(){reimportStub(a.id);};d.appendChild(ri);}
+  d.appendChild(name);d.appendChild(del);
+  return d;
+}
+
+function deleteAsset(aid){
+  var c=AC();
+  if(c){var wasSel=c.clips.concat(c.aClips).some(function(cl){return cl.assetId===aid&&cl.id===S.selId;});if(wasSel){S.selId=null;renderProps();}c.clips=c.clips.filter(function(cl){return cl.assetId!==aid;});c.aClips=c.aClips.filter(function(cl){return cl.assetId!==aid;});}
+  S.assets=S.assets.filter(function(a){return a.id!==aid;});
+  renderAssets();rebuildTl();
+}
+
+// ─── Asset / Comp info in props panel ────────────────────────────────────
+function infoRow(label,val){
+  return '<div class="pr"><div class="pl" style="justify-content:space-between"><span style="color:#666">'+label+'</span><span style="color:#aaa;font-family:monospace;font-size:11px">'+val+'</span></div></div>';
+}
+function showAssetInfo(aid){
+  S.selId=null; // クリップ選択は外す
+  var a=findAsset(aid);if(!a)return;
+  var pi=g('propsInner');
+  var html='<div class="ps">素材情報</div>';
+  html+=infoRow('名前',a.displayName||a.name);
+  html+=infoRow('種類',a.type==='seq'?'連番画像':a.type==='img'?'静止画':a.type==='vid'?'動画':a.type==='solid'?'平面':'音声');
+
+  if(a.type==='seq'){
+    var firstName=a.name;
+    // 連番の最初と最後のフレーム番号を推定
+    var match=firstName.match(/(\d+)(\.[^.]+)$/);
+    if(match){
+      var startNum=parseInt(match[1],10);
+      var digits=match[1].length;
+      var endNum=startNum+(a.frameCount||0)-1;
+      var pad=function(n){var s=''+n;while(s.length<digits)s='0'+s;return s;};
+      html+=infoRow('開始フレーム',pad(startNum));
+      html+=infoRow('終了フレーム',pad(endNum));
+      html+=infoRow('フレーム数',(a.frameCount||0)+'f');
+    }
+    html+=infoRow('シーケンスFPS',(a.seqFps||S.fps)+' fps');
+    html+=infoRow('尺',fmtTime(a.duration||0));
+    if(a.frames&&a.frames.length){html+=infoRow('サイズ',a.frames[0].width+'×'+a.frames[0].height);}
+  } else if(a.type==='img'){
+    if(a.frames&&a.frames.length){html+=infoRow('サイズ',a.frames[0].width+'×'+a.frames[0].height);}
+  } else if(a.type==='vid'){
+    if(a.videoEl){html+=infoRow('サイズ',a.videoEl.videoWidth+'×'+a.videoEl.videoHeight);}
+    html+=infoRow('尺',fmtTime(a.duration||0));
+  } else if(a.type==='solid'){
+    html+=infoRow('サイズ',CW+'×'+CH);
+    html+=infoRow('色',a.color||'#000000');
+    if(a.color){html+='<div class="pr"><div style="width:100%;height:18px;border-radius:3px;border:1px solid #333;background:'+(a.color)+'"></div></div>';}
+  } else if(a.type==='aud'){
+    html+=infoRow('尺',fmtTime(a.duration||0));
+  }
+  if(a.stub){html+='<p style="font-size:11px;color:#c08030;margin-top:8px">⚠ リンク切れ</p>';}
+  pi.innerHTML=html;
+}
+
+function showCompInfo(cid){
+  S.selId=null;
+  var comp=S.comps.find(function(c){return c.id===cid;});if(!comp)return;
+  var pi=g('propsInner');
+  var cw=comp.width||CW, ch=comp.height||CH;
+  var html='<div class="ps">コンポ情報</div>';
+  html+=infoRow('名前',comp.name);
+  html+=infoRow('サイズ',cw+'×'+ch);
+  html+=infoRow('FPS',S.fps+' fps');
+  html+=infoRow('尺',fmtTime(comp.dur));
+  html+=infoRow('映像レイヤー',comp.vLayers.length+'');
+  html+=infoRow('音声トラック',comp.aTracks.length+'');
+  html+=infoRow('映像クリップ',comp.clips.length+'');
+  html+=infoRow('音声クリップ',comp.aClips.length+'');
+  html+='<div class="ps">サイズ変更</div>'
+    +'<div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">'
+    +'<input type="number" id="pCW" value="'+cw+'" min="1" max="7680" style="width:60px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:3px 5px;font-size:12px;">'
+    +'<span style="color:#555;font-size:11px">×</span>'
+    +'<input type="number" id="pCH" value="'+ch+'" min="1" max="4320" style="width:60px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:3px 5px;font-size:12px;">'
+    +'<button class="btn sm" onclick="applyCompSize('+cid+')">適用</button>'
+    +'</div>';
+  html+='<button class="btn sm" style="margin-top:4px" onclick="setActiveComp('+cid+')">このコンポを開く</button>';
+  pi.innerHTML=html;
+}
+function applyCompSize(cid){
+  var comp=S.comps.find(function(c){return c.id===cid;});if(!comp)return;
+  var w=parseInt(g('pCW').value)||comp.width||CW;
+  var h=parseInt(g('pCH').value)||comp.height||CH;
+  comp.width=w; comp.height=h;
+  // アクティブなコンポなら即座に反映
+  if(S.activeCompId===cid){
+    CW=w; CH=h; C.width=CW; C.height=CH;
+    var knownRes=['1920x1080','1280x720'];
+    var rs=CW+'x'+CH;
+    g('selRes').value=knownRes.indexOf(rs)>=0?rs:'custom';
+    g('inResW').value=CW; g('inResH').value=CH;
+    setPvZoom(pvZoom);
+  }
+  // offscreenキャンバスを再生成
+  delete _compCanvases[cid];
+  pushHistory();
+  showCompInfo(cid);
+  rebuildTl();
+}
+
+// ─── Solid layer ──────────────────────────────────────────────────────────
+// ─── Solid functions (modal is in HTML) ───────────────────────────────────
+function createSolid(){
+  var cnt=S.assets.filter(function(a){return a.type==='solid';}).length+1;
+  g('solidColorPick').value='#000000';
+  g('solidPreview').style.background='#000000';
+  var n=g('solidName');
+  n.value='ブラック 平面 '+cnt; n._edited=false;
+  g('solidModal').style.display='flex';
+  setTimeout(function(){n.focus();n.select();},50);
+}
+function hideSolidModal(){g('solidModal').style.display='none';}
+function onSolidColorInput(v){
+  g('solidPreview').style.background=v;
+  var n=g('solidName');
+  if(!n._edited) n.value=hexToSolidName(v)+' 平面 '+(S.assets.filter(function(a){return a.type==='solid';}).length+1);
+}
+function confirmSolid(){
+  var color=g('solidColorPick').value;
+  var name=g('solidName').value.trim();
+  hideSolidModal();
+  if(!name) return;
+  var oc=document.createElement('canvas');oc.width=CW;oc.height=CH;
+  var octx=oc.getContext('2d');octx.fillStyle=color;octx.fillRect(0,0,CW,CH);
+  createImageBitmap(oc).then(function(bmp){
+    var aid=nid();
+    S.assets.push({id:aid,type:'solid',name:name,displayName:name,
+      color:color,solidW:CW,solidH:CH,
+      frames:[bmp],seqFps:S.fps,duration:9999,frameCount:1});
+    renderAssets();
+  });
+}
+function hexToSolidName(hex){
+  var names={'#000000':'ブラック','#ffffff':'ホワイト','#ff0000':'レッド',
+    '#00ff00':'グリーン','#0000ff':'ブルー','#ffff00':'イエロー',
+    '#ff00ff':'マゼンタ','#00ffff':'シアン','#808080':'グレー'};
+  return (names[hex.toLowerCase()]||'カスタム');
+}
+
+// ─── Comp management ──────────────────────────────────────────────────────
+function mkComp(name,w,h){
+  return {id:nid(),name:name||'Comp'+(S.comps.length+1),dur:10,
+    width:w||CW,height:h||CH,
+    vLayers:[{id:nid(),name:'V2'},{id:nid(),name:'V1'}],
+    aTracks:[{id:nid(),name:'A1'}],
+    clips:[],aClips:[]};
+}
+function addComp(){
+  var n=g('newCompName');
+  n.value='Comp'+(S.comps.length+1);
+  g('newCompResPreset').value='1920x1080';
+  g('newCompW').value=CW; g('newCompH').value=CH;
+  g('addCompModal').style.display='flex';
+  setTimeout(function(){n.focus();n.select();},50);
+}
+function onNewCompResPreset(v){
+  if(v!=='custom'){var p=v.split('x');g('newCompW').value=p[0];g('newCompH').value=p[1];}
+}
+function confirmAddComp(){
+  var name=g('newCompName').value.trim();
+  if(!name)return;
+  var w=parseInt(g('newCompW').value)||1920;
+  var h=parseInt(g('newCompH').value)||1080;
+  g('addCompModal').style.display='none';
+  var c=mkComp(name,w,h);
+  S.comps.unshift(c);
+  setActiveComp(c.id);
+  pushHistory();renderAssets();
+}
+function removeComp(id){
+  if(S.comps.length<=1){alert('最後のコンポは削除できません');return;}
+  if(!confirm('コンポ「'+S.comps.find(function(c){return c.id===id;}).name+'」を削除しますか？\n（このコンポを参照しているクリップも削除されます）'))return;
+  // Remove comp clips referencing this comp in all comps
+  S.comps.forEach(function(c){c.clips=c.clips.filter(function(cl){return cl.compId!==id;});});
+  S.comps=S.comps.filter(function(c){return c.id!==id;});
+  if(S.activeCompId===id) S.activeCompId=S.comps[0].id;
+  renderCompTabs();renderAssets();rebuildTl();pushHistory();
+}
+function renameComp(id){
+  var c=S.comps.find(function(c){return c.id===id;});if(!c)return;
+  var n=prompt('コンポ名を変更してください',c.name);if(n&&n.trim()){c.name=n.trim();pushHistory();}
+  renderCompTabs();renderAssets();
+}
+function setActiveComp(id){
+  S.activeCompId=id;S.selId=null;S.time=snapToFrame(S.time);
+  var c=AC();
+  if(c){
+    g('inDur').value=c.dur;
+    // コンポ独自サイズをグローバルに反映
+    var cw=c.width||CW, ch=c.height||CH;
+    CW=cw; CH=ch;
+    C.width=CW; C.height=CH;
+    // 解像度UIも更新
+    var knownRes=['1920x1080','1280x720'];
+    var resStr=CW+'x'+CH;
+    g('selRes').value=knownRes.indexOf(resStr)>=0?resStr:'custom';
+    g('inResW').value=CW; g('inResH').value=CH;
+    setPvZoom(pvZoom);
+  }
+  renderCompTabs();rebuildTl();renderProps();updateTimeDisp();
+}
+
+var _tabDrag=null; // {compId, startIdx}
+
+function renderCompTabs(){
+  var bar=g('compTabs');bar.innerHTML='';
+  S.comps.forEach(function(comp,idx){
+    var tab=document.createElement('div');
+    tab.className='comp-tab'+(comp.id===S.activeCompId?' act':'');
+    tab.draggable=true;
+    tab.dataset.cid=''+comp.id;
+
+    // Drag to reorder
+    tab.ondragstart=function(e){
+      _tabDrag={compId:comp.id,startIdx:idx};
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('tab-drag','1');
+      tab.style.opacity='0.5';
+      e.stopPropagation();
+    };
+    tab.ondragend=function(){tab.style.opacity='1';_tabDrag=null;};
+    tab.ondragover=function(e){
+      // only handle tab-reorder drags, not asset drags
+      if(!_tabDrag)return;
+      e.preventDefault();e.stopPropagation();
+      tab.style.borderLeft='2px solid #2e6ea6';
+    };
+    tab.ondragleave=function(){tab.style.borderLeft='';};
+    tab.ondrop=function(e){
+      tab.style.borderLeft='';
+      if(!_tabDrag||_tabDrag.compId===comp.id)return;
+      e.preventDefault();e.stopPropagation();
+      var fromIdx=S.comps.findIndex(function(c){return c.id===_tabDrag.compId;});
+      var toIdx=S.comps.findIndex(function(c){return c.id===comp.id;});
+      if(fromIdx<0||toIdx<0)return;
+      var moved=S.comps.splice(fromIdx,1)[0];
+      S.comps.splice(toIdx,0,moved);
+      _tabDrag=null;
+      renderCompTabs();renderAssets();pushHistory();
+    };
+
+    // Name: click=switch, double-click=rename
+    var nm=document.createElement('span');nm.textContent=comp.name;nm.style.pointerEvents='auto';
+    nm.ondblclick=function(e){e.stopPropagation();renameComp(comp.id);};
+    tab.appendChild(nm);
+
+    // ✏ rename button
+    var ed=document.createElement('span');ed.textContent='✏';ed.title='名前を変更 (ダブルクリックでも可)';
+    ed.style.cssText='font-size:10px;color:#444;padding:1px 3px;border-radius:2px;cursor:pointer;';
+    ed.onmouseover=function(){ed.style.color='#aaa';};ed.onmouseout=function(){ed.style.color='#444';};
+    ed.onclick=function(e){e.stopPropagation();renameComp(comp.id);};
+    tab.appendChild(ed);
+
+    if(S.comps.length>1){
+      var x=document.createElement('span');x.className='comp-tab-del';x.textContent='×';x.title='コンポを削除';
+      x.onclick=function(e){e.stopPropagation();removeComp(comp.id);};
+      tab.appendChild(x);
+    }
+    tab.onclick=function(e){if(e.target===tab||e.target===nm)setActiveComp(comp.id);};
+    bar.appendChild(tab);
+  });
+  var add=document.createElement('div');add.className='comp-add';add.textContent='+';add.title='新規コンポ';
+  add.onclick=addComp;bar.appendChild(add);
+}
+
+// ─── Save / Load ──────────────────────────────────────────────────────────
+function buildProjectJSON(){
+  return {
+    version:5,projId:S.projId,fps:S.fps,pxPerSec:S.pxPerSec,
+    resolution:CW+'x'+CH,timeMode:S.timeMode,
+    comps:JSON.parse(JSON.stringify(S.comps)),
+    activeCompId:S.activeCompId,
+    folders:JSON.parse(JSON.stringify(S.folders)),
+    assets:S.assets.map(function(a){
+      return {id:a.id,type:a.type,name:a.name,originalName:a.originalName||a.name,
+        displayName:a.displayName||a.name,duration:a.duration||0,
+        seqFps:a.seqFps||null,frameCount:a.frameCount||0,folderId:a.folderId||null,
+        color:a.color||null};  // solid用
+    }),
+    _nid:S._nid
+  };
+}
+async function saveProject(){
+  var json=JSON.stringify(buildProjectJSON(),null,2);
+  if(canFSA&&window.showSaveFilePicker){
+    try{var handle=await window.showSaveFilePicker({startIn:'desktop',suggestedName:'project1.json',types:[{description:'AEmini Project File',accept:{'application/json':['.json']}}]});var w=await handle.createWritable();await w.write(json);await w.close();return;}
+    catch(e){if(e.name==='AbortError')return;}
+  }
+  var name=prompt('保存ファイル名（拡張子不要）','project1');if(!name)return;
+  name=name.replace(/\.(json|tlv)$/gi,'');
+  var blob=new Blob([json],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=name+'.json';a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},5000);
+}
+async function openProject(){
+  if(!canFSA){g('fi-proj').click();return;}
+  try{var hs=await window.showOpenFilePicker({startIn:'desktop',types:[{description:'TLV Project File',accept:{'application/json':['.json']}}]});var text=await(await hs[0].getFile()).text();await doLoadProject(JSON.parse(text));}
+  catch(e){if(e.name!=='AbortError'){console.warn(e);g('fi-proj').click();}}
+}
+g('fi-proj').onchange=async function(){var f=this.files[0];if(!f)return;try{await doLoadProject(JSON.parse(await f.text()));}catch(err){alert('読み込みエラー: '+err.message);}this.value='';};
+
+async function doLoadProject(proj){
+  if((proj.version||0)<5){alert('バージョン非対応 (v5以上が必要)');return;}
+  pause();
+  S.fps=proj.fps||24;S.pxPerSec=proj.pxPerSec||120;S.timeMode=proj.timeMode||'frame';
+  S.projId=proj.projId||('p'+Date.now());S.selId=null;S.time=0;
+  g('inFps').value=S.fps;
+  g('btnTimeMode').textContent=S.timeMode==='frame'?'F':'S';
+  g('btnTimeMode').classList.toggle('act',S.timeMode==='frame');
+  S.comps=proj.comps||[];S.activeCompId=proj.activeCompId||null;
+  if(S.comps.length>0&&!S.comps.find(function(c){return c.id===S.activeCompId;})) S.activeCompId=S.comps[0].id;
+  // 旧バージョンJSON（width/heightなし）はプロジェクトのresolutionで補完
+  if(proj.resolution){
+    var rp=proj.resolution.split('x');
+    var fallW=+(rp[0]||1920), fallH=+(rp[1]||1080);
+    S.comps.forEach(function(c){if(!c.width)c.width=fallW;if(!c.height)c.height=fallH;});
+  }
+  // アクティブコンポのサイズを反映
+  var activeC=S.comps.find(function(c){return c.id===S.activeCompId;});
+  if(activeC){
+    CW=activeC.width||CW; CH=activeC.height||CH;
+    C.width=CW; C.height=CH;
+    var knownRes2=['1920x1080','1280x720'];
+    var resStr2=CW+'x'+CH;
+    g('selRes').value=knownRes2.indexOf(resStr2)>=0?resStr2:'custom';
+    g('inResW').value=CW; g('inResH').value=CH;
+    setPvZoom(pvZoom);
+  } else if(proj.resolution){
+    changeRes(proj.resolution);
+  }
+  S.folders=proj.folders||[];S._nid=proj._nid||100;
+  // URLエンコードされた名前をデコード（AEエクスポート由来のJSONに対応）
+  function safeDecodeAssetName(s){
+    if(!s)return s;
+    if(s.indexOf('%')<0)return s;
+    try{return decodeURIComponent(s);}catch(e){return s;}
+  }
+  S.assets=(proj.assets||[]).map(function(a){
+    var name=safeDecodeAssetName(a.name||'');
+    var orig=safeDecodeAssetName(a.originalName||a.name||'');
+    var disp=safeDecodeAssetName(a.displayName||a.name||'');
+    // 平面はすぐ復元可能（色情報のみで再生成できる）
+    if(a.type==='solid'&&a.color){
+      return {id:a.id,type:'solid',name:name,originalName:orig,
+        displayName:disp,duration:9999,color:a.color,
+        solidW:0,solidH:0,frames:[],seqFps:S.fps,frameCount:1,
+        folderId:a.folderId||null};
+    }
+    return {id:a.id,type:a.type,name:name,originalName:orig,
+      displayName:disp,duration:a.duration,seqFps:a.seqFps,
+      frameCount:a.frameCount,folderId:a.folderId||null,stub:true};
+  });
+  var c=AC();if(c)g('inDur').value=c.dur;
+  renderCompTabs();renderAssets();rebuildTl();renderProps();updateTimeDisp();
+  if(S.assets.filter(function(a){return a.stub;}).length>0){
+    showLoad('ファイルリンクを復元中...','',0);await tick();
+    var restored=0,failed=0;
+    var stubAssets=S.assets.filter(function(a){return a.stub;});
+    for(var i=0;i<stubAssets.length;i++){setLoad((i+1)/stubAssets.length,'ファイルリンクを復元中...',stubAssets[i].originalName||stubAssets[i].name);await tick();if(await tryRestoreAsset(stubAssets[i]))restored++;else failed++;}
+    hideLoad();renderAssets();rebuildTl();
+    if(failed>0)alert(restored>0?restored+'件を自動復元しました。'+failed+'件はリンクが必要です。\n素材パネルの「リンク」ボタンで再指定してください。':'ファイルリンクを復元できませんでした。\n「リンク」ボタンで各ファイルを再指定してください。');
+  }
+  pushHistory();
+}
+
+// ─── Layers / Tracks ──────────────────────────────────────────────────────
+function addVLayer(){var c=AC();if(!c)return;c.vLayers.unshift({id:nid(),name:'V'+(c.vLayers.length+1),visible:true});rebuildTl();pushHistory();}
+function addATrack(){var c=AC();if(!c)return;c.aTracks.push({id:nid(),name:'A'+(c.aTracks.length+1),visible:true});rebuildTl();pushHistory();}
+function toggleLayerVisible(id,kind){
+  var c=AC();if(!c)return;
+  var arr=kind==='v'?c.vLayers:c.aTracks;
+  var layer=arr.find(function(l){return l.id===id;});
+  if(layer){layer.visible=(layer.visible===false)?true:false;}
+  rebuildTl();pushHistory();
+}
+function removeVLayer(id){
+  id=+id;var c=AC();if(!c)return;
+  c.clips=c.clips.filter(function(cl){return cl.layerId!==id;});
+  c.vLayers=c.vLayers.filter(function(l){return l.id!==id;});
+  if(S.selId&&!findClip(S.selId)){S.selId=null;renderProps();}
+  rebuildTl();pushHistory();
+}
+function removeATrack(id){
+  id=+id;var c=AC();if(!c)return;
+  c.aClips=c.aClips.filter(function(cl){return cl.trackId!==id;});
+  c.aTracks=c.aTracks.filter(function(t){return t.id!==id;});
+  rebuildTl();pushHistory();
+}
+
+// ─── Clip factory ─────────────────────────────────────────────────────────
+function clipNatDims(clip,ownerComp){
+  var fallbackW=ownerComp?(ownerComp.width||CW):CW;
+  var fallbackH=ownerComp?(ownerComp.height||CH):CH;
+  if(clip.compId){
+    var nc=S.comps.find(function(c){return c.id===clip.compId;});
+    return{w:nc?(nc.width||CW):fallbackW,h:nc?(nc.height||CH):fallbackH};
+  }
+  if(clip.natW&&clip.natH)return{w:clip.natW,h:clip.natH};
+  var a=findAsset(clip.assetId);if(!a)return{w:fallbackW,h:fallbackH};
+  if((a.type==='seq'||a.type==='img')&&a.frames&&a.frames.length)return{w:a.frames[0].width,h:a.frames[0].height};
+  if(a.type==='vid'&&a.videoEl)return{w:a.videoEl.videoWidth||fallbackW,h:a.videoEl.videoHeight||fallbackH};
+  return{w:fallbackW,h:fallbackH};
+}
+function mkVClip(assetId,layerId,tStart){
+  tStart=snapToFrame(tStart);
+  var a=findAsset(assetId);
+  var src=a&&a.type==='img'?(10/S.fps):a&&a.type==='solid'?(10/S.fps):a?Math.min(maxSrc(a),10):5;
+  var natW=CW,natH=CH;
+  if(a){if((a.type==='seq'||a.type==='img')&&a.frames&&a.frames.length){natW=a.frames[0].width;natH=a.frames[0].height;}else if(a.type==='vid'&&a.videoEl){natW=a.videoEl.videoWidth||CW;natH=a.videoEl.videoHeight||CH;}}
+  return {id:nid(),assetId:assetId,layerId:layerId,tStart:tStart,dur:src,trimIn:0,speed:1,fadeIn:0,fadeOut:0,x:0,y:0,scale:1,natW:natW,natH:natH};
+}
+function mkCompClip(compId,layerId,tStart){
+  tStart=snapToFrame(tStart);
+  var comp=S.comps.find(function(c){return c.id===compId;});
+  var ncW=comp?(comp.width||CW):CW;
+  var ncH=comp?(comp.height||CH):CH;
+  return {id:nid(),compId:compId,layerId:layerId,tStart:tStart,dur:comp?comp.dur:5,trimIn:0,speed:1,fadeIn:0,fadeOut:0,x:0,y:0,scale:1,natW:ncW,natH:ncH};
+}
+function mkAClip(assetId,trackId,tStart){
+  tStart=snapToFrame(tStart);
+  var a=findAsset(assetId);
+  return {id:nid(),assetId:assetId,trackId:trackId,tStart:tStart,dur:a?a.duration:5,trimIn:0,speed:1,vol:1};
+}
+
+// ─── Snap helpers ─────────────────────────────────────────────────────────
+function getSnapPoints(excludeId){
+  var c=AC(),pts=[S.time];if(!c)return pts;
+  c.clips.forEach(function(cl){if(cl.id!==excludeId)pts.push(cl.tStart,cl.tStart+cl.dur);});
+  c.aClips.forEach(function(cl){if(cl.id!==excludeId)pts.push(cl.tStart,cl.tStart+cl.dur);});
+  pts.push(0,c.dur);return pts;
+}
+function snapNearest(t,pts){var thresh=12/S.pxPerSec,best=t,bestD=Infinity;pts.forEach(function(p){var d=Math.abs(p-t);if(d<bestD&&d<thresh){bestD=d;best=p;}});return best;}
+
+// ─── Timeline build ───────────────────────────────────────────────────────
+var _drag=null,_res=null,_rulerDown=false,_tfDrag=null;
+
+function rebuildTl(){
+  var comp=AC();if(!comp)return;
+  // クリップの最大終端を計算してタイムライン幅を決定
+  var maxEnd=comp.dur;
+  comp.clips.forEach(function(c){var e=c.tStart+c.dur;if(e>maxEnd)maxEnd=e;});
+  comp.aClips.forEach(function(c){var e=c.tStart+c.dur;if(e>maxEnd)maxEnd=e;});
+  var w=Math.max(timeToX(maxEnd)+120,g('tlRight').clientWidth||600);
+  var allTracks=comp.vLayers.map(function(l){return{id:l.id,name:l.name,kind:'v',visible:l.visible};})
+    .concat(comp.aTracks.map(function(t){return{id:t.id,name:t.name,kind:'a',visible:t.visible};}));
+  var inner=g('tlInner');
+  inner.style.width=w+'px';
+  inner.style.height=(RULER_H+allTracks.length*TRACK_H)+'px';
+  drawRuler(w,comp.dur);
+  Array.from(inner.querySelectorAll('.tl-row')).forEach(function(e){e.remove();});
+  var lblRows=g('tlLblRows');lblRows.innerHTML='';
+
+  allTracks.forEach(function(track){
+    var isVisible=track.visible!==false;
+    var lbl=document.createElement('div');lbl.className='lbl-row';
+    lbl.innerHTML='<span class="lbl-eye '+(isVisible?'on':'off')+'" title="'+(isVisible?'クリックで非表示':'クリックで表示')+'" onclick="toggleLayerVisible('+track.id+',\''+track.kind+'\')">'+(isVisible?'●':'⊘')+'</span>'
+      +'<span title="'+track.name+'" style="'+(isVisible?'':'opacity:.4')+'">'+track.name+'</span>'
+      +'<span class="lbl-del" onclick="'+(track.kind==='v'?'removeVLayer':'removeATrack')+'('+track.id+')">✕</span>';
+    lblRows.appendChild(lbl);
+
+    var row=document.createElement('div');row.className='tl-row';
+    row.dataset.tid=''+track.id;row.dataset.kind=track.kind;
+    if(!isVisible)row.style.opacity='0.35';
+    row.ondragover=function(e){e.preventDefault();row.classList.add('drop-hi');};
+    row.ondragleave=function(){row.classList.remove('drop-hi');};
+    row.ondrop=function(e){
+      e.preventDefault();row.classList.remove('drop-hi');
+      var right=g('tlRight');
+      var tStart=xToTime(e.clientX-right.getBoundingClientRect().left+right.scrollLeft);
+      // Comp clip drop
+      var cmpId=parseInt(e.dataTransfer.getData('compId'),10);
+      if(cmpId&&track.kind==='v'){
+        if(cmpId===S.activeCompId){alert('自分自身をネストすることはできません');return;}
+        comp.clips.push(mkCompClip(cmpId,track.id,tStart));rebuildTl();pushHistory();return;
+      }
+      // Asset drop
+      var aid=parseInt(e.dataTransfer.getData('aid'),10);if(!aid)return;
+      var asset=findAsset(aid);if(!asset||asset.stub)return;
+      if(track.kind==='v'&&asset.type!=='aud'){
+        comp.clips.push(mkVClip(aid,track.id,tStart));rebuildTl();pushHistory();
+      } else if(track.kind==='a'&&asset.type==='aud'){
+        comp.aClips.push(mkAClip(aid,track.id,tStart));rebuildTl();pushHistory();
+      } else alert(track.kind==='a'?'音声素材を音声トラックへ':'動画/画像を映像レイヤーへ配置してください');
+    };
+
+    var clips=track.kind==='v'
+      ?comp.clips.filter(function(c){return c.layerId===track.id;})
+      :comp.aClips.filter(function(c){return c.trackId===track.id;});
+
+    clips.forEach(function(clip){
+      var asset=clip.compId?null:findAsset(clip.assetId);
+      var x=timeToX(clip.tStart),cw=Math.max(timeToX(clip.dur),6);
+      var isStub=asset&&asset.stub;
+      var baseCol=clip.compId?'#1a1040':isStub?'#2a2a10':track.kind==='a'?'#3a1060':CLIP_COLORS[clip.id%CLIP_COLORS.length];
+      var brdCol=clip.compId?'#8060d0':isStub?'#504a20':track.kind==='a'?'#7040b0':baseCol;
+      var txtCol=clip.compId?'#c0a0ff':isStub?'#c0b050':track.kind==='a'?'#c090f8':'#9ac8ff';
+      var hasRemap=(clip.speed||1)!==1;
+      var label=clip.compId?(S.comps.find(function(c){return c.id===clip.compId;})||{name:'?'}).name:(isStub?'⚠ ':'')+(asset?asset.name:'?');
+
+      var ce=document.createElement('div');
+      ce.className='clip'+(clip.id===S.selId?' sel':'')+(hasRemap?' remap':'');
+      ce.style.cssText='left:'+x+'px;width:'+cw+'px;background:'+baseCol+'cc;border-color:'+brdCol+';';
+      ce.innerHTML='<div class="rsz-l"></div>'
+        +'<span class="clip-lbl" style="color:'+txtCol+'">'+(clip.compId?'◆ ':'' )+(hasRemap?'⟲'+((clip.speed||1).toFixed(2))+'x ':'')+label+'</span>'
+        +'<div class="rsz-r"></div>';
+
+      ce.onmousedown=function(e){
+        e.preventDefault();
+        var isL=e.target.classList.contains('rsz-l'),isR=e.target.classList.contains('rsz-r');
+        if(isR){S.selId=clip.id;rebuildTl();renderProps();_res={cid:clip.id,startX:e.clientX,side:'r',origDur:clip.dur,origTrimIn:clip.trimIn||0,origTStart:clip.tStart,origSpeed:clip.speed||1,isRemap:e.shiftKey};return;}
+        if(isL){S.selId=clip.id;rebuildTl();renderProps();_res={cid:clip.id,startX:e.clientX,side:'l',origDur:clip.dur,origTrimIn:clip.trimIn||0,origTStart:clip.tStart,origSpeed:clip.speed||1,isRemap:e.shiftKey};return;}
+        var rect=ce.getBoundingClientRect();var offX=e.clientX-rect.left;
+        S.selId=clip.id;rebuildTl();renderProps();
+        _drag={cid:clip.id,offX:offX,kind:track.kind,snapPts:getSnapPoints(clip.id)};
+      };
+      row.appendChild(ce);
+    });
+    inner.insertBefore(row,g('playhead'));
+  });
+  updatePlayhead();
+  g('tlLblRows').scrollTop=g('tlRight').scrollTop;
+}
+
+function drawRuler(w,dur){
+  var rc=g('rulerCanvas');rc.width=w;rc.height=RULER_H;
+  var cx=rc.getContext('2d');
+  cx.fillStyle='#181818';cx.fillRect(0,0,w,RULER_H);
+  cx.fillStyle='#555';cx.font='10px monospace';cx.textBaseline='top';
+  // 表示上の末尾は dur - 1f (0始まりなのでdur*fps-1が最終フレーム)
+  var lastF=Math.round(dur*S.fps)-1;
+  if(S.timeMode==='frame'){
+    var pxPerF=S.pxPerSec/S.fps,fStep=1;
+    if(pxPerF<2)fStep=Math.ceil(S.fps/2)*2;else if(pxPerF<4)fStep=Math.max(1,Math.round(S.fps/6));else if(pxPerF<10)fStep=5;else if(pxPerF<20)fStep=2;
+    for(var f=0;f<=lastF;f+=fStep){
+      var px=Math.round(timeToX(f/S.fps))+0.5;
+      cx.strokeStyle='#2a2a2a';cx.lineWidth=1;cx.beginPath();cx.moveTo(px,RULER_H-7);cx.lineTo(px,RULER_H);cx.stroke();
+      cx.fillText(fStep>=S.fps?Math.floor(f/S.fps)+'s':f+'f',px+2,3);
+    }
+  } else {
+    var step=1;if(S.pxPerSec<40)step=5;if(S.pxPerSec<15)step=10;if(S.pxPerSec<8)step=30;if(S.pxPerSec>250)step=0.5;
+    var lastT=lastF/S.fps;
+    for(var t=0;t<=lastT+0.001;t+=step){
+      var px2=Math.round(timeToX(t))+0.5;
+      cx.strokeStyle='#2a2a2a';cx.lineWidth=1;cx.beginPath();cx.moveTo(px2,RULER_H-7);cx.lineTo(px2,RULER_H);cx.stroke();
+      var mm=Math.floor(t/60),ss=Math.floor(t%60);
+      cx.fillText(mm>0?mm+':'+ss:(t%1===0?ss+'s':t.toFixed(1)),px2+2,3);
+    }
+  }
+}
+
+function updatePlayhead(){
+  var comp=AC();var ph=g('playhead');
+  ph.style.left=timeToX(S.time)+'px';ph.style.top='0';
+  ph.style.height=(RULER_H+TRACK_H*((comp?comp.vLayers.length+comp.aTracks.length:0)))+'px';
+}
+
+// ─── Mouse events ─────────────────────────────────────────────────────────
+document.addEventListener('mousemove',function(e){
+  if(_tfDrag){doTfDrag(e);return;}
+  if(_drag){
+    var clip=findClip(_drag.cid);if(!clip)return;
+    var comp=AC();if(!comp)return;
+    var right=g('tlRight');
+    var absX=e.clientX-right.getBoundingClientRect().left+right.scrollLeft;
+    var newStart=snapToFrame(xToTime(absX-_drag.offX));
+    if(e.shiftKey)newStart=snapToFrame(snapNearest(newStart,_drag.snapPts));
+    clip.tStart=newStart;
+    document.querySelectorAll('.tl-row[data-kind="'+_drag.kind+'"]').forEach(function(row){
+      var rb=row.getBoundingClientRect();
+      if(e.clientY>=rb.top&&e.clientY<=rb.bottom){var tid=parseInt(row.dataset.tid,10);if(_drag.kind==='v')clip.layerId=tid;else clip.trackId=tid;}
+    });
+    rebuildTl();return;
+  }
+  if(_res){
+    var clip=findClip(_res.cid);if(!clip)return;
+    var a=clip.compId?null:findAsset(clip.assetId);
+    var srcMax=clip.compId?9999:maxSrc(a);
+    var delta=(e.clientX-_res.startX)/S.pxPerSec;
+    var srcLength=_res.origDur*_res.origSpeed;
+    if(_res.isRemap){
+      if(_res.side==='r'){var nd=snapToFrame(Math.max(1/S.fps,_res.origDur+delta));clip.dur=nd;clip.speed=srcLength/nd;}
+      else{var origTEnd=_res.origTStart+_res.origDur;var nts=snapToFrame(Math.max(0,_res.origTStart+delta));var nd2=snapToFrame(Math.max(1/S.fps,origTEnd-nts));clip.tStart=nts;clip.dur=nd2;clip.speed=srcLength/nd2;clip.trimIn=_res.origTrimIn;}
+    } else {
+      if(_res.side==='r'){
+        var nd3=snapToFrame(Math.max(1/S.fps,_res.origDur+delta));nd3=Math.min(nd3,srcMax-clip.trimIn);
+        if(e.shiftKey){var tEnd=clip.tStart+nd3;var sn=snapToFrame(snapNearest(tEnd,getSnapPoints(_res.cid)));nd3=Math.max(1/S.fps,sn-clip.tStart);}
+        clip.dur=nd3;
+      } else {
+        var nTi=_res.origTrimIn+delta,nTs=_res.origTStart+delta,nD=_res.origDur-delta;
+        if(nTi<0){nTi=0;nTs=_res.origTStart-_res.origTrimIn;nD=_res.origDur+_res.origTrimIn;}
+        if(nD<1/S.fps)nD=1/S.fps;if(nTs<0)nTs=0;
+        nTs=snapToFrame(nTs);nD=snapToFrame(nD);nTi=snapToFrame(nTi);
+        if(e.shiftKey){var sn2=snapToFrame(snapNearest(nTs,getSnapPoints(_res.cid)));var diff=sn2-nTs;nTs=sn2;nTi+=diff;nD-=diff;nD=snapToFrame(Math.max(1/S.fps,nD));}
+        clip.trimIn=Math.max(0,nTi);clip.tStart=Math.max(0,nTs);clip.dur=Math.max(1/S.fps,nD);
+      }
+    }
+    rebuildTl();if(S.selId===_res.cid)renderProps();
+  }
+});
+document.addEventListener('mouseup',function(){if(_drag||_res||_tfDrag)pushHistory();_drag=null;_res=null;_rulerDown=false;_tfDrag=null;});
+g('rulerCanvas').addEventListener('mousedown',function(e){_rulerDown=true;doSeek(e.clientX);e.preventDefault();});
+document.addEventListener('mousemove',function(e){if(_rulerDown)doSeek(e.clientX);});
+function doSeek(clientX){
+  var comp=AC();if(!comp)return;
+  var right=g('tlRight');
+  S.time=snapToFrame(Math.max(0,Math.min(comp.dur,xToTime(clientX-right.getBoundingClientRect().left+right.scrollLeft))));
+  syncMedia();updatePlayhead();updateTimeDisp();
+}
+g('tlRight').addEventListener('scroll',function(){g('tlLblRows').scrollTop=g('tlRight').scrollTop;});
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  var comp=AC();
+  if(e.code==='ArrowLeft'&&comp){S.time=snapToFrame(Math.max(0,S.time-1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
+  if(e.code==='ArrowRight'&&comp){S.time=snapToFrame(Math.min(comp.dur,S.time+1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
+  if((e.code==='Delete'||e.code==='Backspace')&&S.selId)deleteSelClip();
+  if(e.code==='KeyD'&&e.shiftKey&&(e.ctrlKey||e.metaKey)){e.preventDefault();splitAtPlayhead();}
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyZ'){e.preventDefault();undo();}
+  if((e.ctrlKey||e.metaKey)&&(e.shiftKey&&e.code==='KeyZ'||e.code==='KeyY')){e.preventDefault();redo();}
+});
+
+function splitAtPlayhead(){
+  var comp=AC();if(!comp)return;
+  pushHistory();
+  var t=S.time,toAdd=[],toRemove=[];
+  comp.clips.forEach(function(clip){
+    var lt=t-clip.tStart;if(lt<=0.001||lt>=clip.dur-0.001)return;
+    toRemove.push(clip.id);
+    var c1=JSON.parse(JSON.stringify(clip));c1.id=nid();c1.dur=lt;
+    var c2=JSON.parse(JSON.stringify(clip));c2.id=nid();c2.tStart=t;c2.dur=clip.dur-lt;c2.trimIn=clip.trimIn+lt*(clip.speed||1);
+    toAdd.push(c1,c2);
+  });
+  comp.clips=comp.clips.filter(function(c){return toRemove.indexOf(c.id)<0;}).concat(toAdd);
+  rebuildTl();pushHistory();
+}
+
+// ─── Canvas transform ─────────────────────────────────────────────────────
+C.addEventListener('mousedown',function(e){
+  if(e.button!==0||!S.selId)return;
+  var clip=findClip(S.selId);if(!clip||isAClip(S.selId))return;
+  var lt=S.time-clip.tStart;if(lt<0||lt>=clip.dur)return;
+  var pos=screenToCanvas(e);
+  var nd=clipNatDims(clip);
+  var cx=CW/2+(clip.x||0),cy=CH/2+(clip.y||0);
+  var hw=nd.w/2*(clip.scale||1),hh=nd.h/2*(clip.scale||1),hr=handleRadius();
+  var corners=[{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}];
+  var hitCorner=corners.findIndex(function(c){return Math.abs(pos.x-c.x)<hr&&Math.abs(pos.y-c.y)<hr;});
+  if(hitCorner>=0){_tfDrag={type:'scale',startX:e.clientX,startY:e.clientY,origScale:clip.scale||1,origX:clip.x||0,origY:clip.y||0,cornerX:corners[hitCorner].x,cornerY:corners[hitCorner].y,clipId:S.selId};e.preventDefault();e.stopPropagation();return;}
+  if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh){_tfDrag={type:'move',startX:e.clientX,startY:e.clientY,origX:clip.x||0,origY:clip.y||0,clipId:S.selId};e.preventDefault();e.stopPropagation();}
+});
+C.addEventListener('mousemove',function(e){
+  if(!S.selId){C.style.cursor='default';return;}
+  var clip=findClip(S.selId);if(!clip||isAClip(S.selId)){C.style.cursor='default';return;}
+  var lt=S.time-clip.tStart;if(lt<0||lt>=clip.dur){C.style.cursor='default';return;}
+  var pos=screenToCanvas(e);var nd=clipNatDims(clip);
+  var cx=CW/2+(clip.x||0),cy=CH/2+(clip.y||0);
+  var hw=nd.w/2*(clip.scale||1),hh=nd.h/2*(clip.scale||1),hr=handleRadius();
+  var corners=[{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}];
+  if(corners.some(function(c){return Math.abs(pos.x-c.x)<hr&&Math.abs(pos.y-c.y)<hr;}))C.style.cursor='nwse-resize';
+  else if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh)C.style.cursor='move';
+  else C.style.cursor='default';
+});
+function doTfDrag(e){
+  if(!_tfDrag)return;var clip=findClip(_tfDrag.clipId);if(!clip)return;
+  var r=C.getBoundingClientRect();var sx=CW/r.width,sy=CH/r.height;
+  var dx=(e.clientX-_tfDrag.startX)*sx,dy=(e.clientY-_tfDrag.startY)*sy;
+  if(_tfDrag.type==='move'){clip.x=_tfDrag.origX+dx;clip.y=_tfDrag.origY+dy;}
+  else{var cx=CW/2+clip.x,cy2=CH/2+clip.y;var od=Math.sqrt(Math.pow(_tfDrag.cornerX-cx,2)+Math.pow(_tfDrag.cornerY-cy2,2));var nd=Math.sqrt(Math.pow(_tfDrag.cornerX+dx-cx,2)+Math.pow(_tfDrag.cornerY+dy-cy2,2));if(od>0)clip.scale=Math.max(0.01,_tfDrag.origScale*(nd/od));}
+  var xEl=g('pX');if(xEl)xEl.textContent=Math.round(clip.x||0);
+  var yEl=g('pY');if(yEl)yEl.textContent=Math.round(clip.y||0);
+  var scEl=g('pSc');if(scEl)scEl.textContent=(clip.scale||1).toFixed(2);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────
+var _compCanvases={};
+function getOrCreateCompCanvas(compId){
+  var comp=S.comps.find(function(c){return c.id===compId;});
+  var cw=comp?(comp.width||CW):CW;
+  var ch=comp?(comp.height||CH):CH;
+  // サイズが変わったら再生成
+  if(!_compCanvases[compId]||_compCanvases[compId].width!==cw||_compCanvases[compId].height!==ch){
+    var oc=document.createElement('canvas');oc.width=cw;oc.height=ch;_compCanvases[compId]=oc;
+  }
+  return _compCanvases[compId];
+}
+
+function getFrameFromClip(clip,lt){
+  if(clip.compId){
+    var srcT=clip.trimIn+(lt*(clip.speed||1));
+    return renderCompToCanvas(clip.compId,srcT);
+  }
+  var a=findAsset(clip.assetId);if(!a||a.stub)return null;
+  var srcT=clip.trimIn+lt*(clip.speed||1);
+  if(a.type==='solid'){
+    // solidのサイズがコンポサイズと変わった場合は再生成
+    if(!a.frames||!a.frames.length||a.solidW!==CW||a.solidH!==CH){
+      var oc=document.createElement('canvas');oc.width=CW;oc.height=CH;
+      var octx=oc.getContext('2d');octx.fillStyle=a.color||'#000';octx.fillRect(0,0,CW,CH);
+      a.solidW=CW;a.solidH=CH;
+      createImageBitmap(oc).then(function(bmp){a.frames=[bmp];});
+      return null; // 次フレームから表示
+    }
+    return a.frames[0];
+  }
+  if(a.type==='seq'||a.type==='img'){if(!a.frames||!a.frames.length)return null;var idx=Math.max(0,Math.min(a.frames.length-1,Math.floor(srcT*(a.seqFps||S.fps))));return a.frames[idx];}
+  if(a.type==='vid')return a.videoEl.readyState>=2?a.videoEl:null;
+  return null;
+}
+
+function renderCompToCanvas(compId,t){
+  var comp=S.comps.find(function(c){return c.id===compId;});if(!comp)return null;
+  var compW=comp.width||CW, compH=comp.height||CH;
+  var oc=getOrCreateCompCanvas(compId);
+  var octx=oc.getContext('2d',{alpha:true});
+  octx.clearRect(0,0,compW,compH);
+  for(var li=comp.vLayers.length-1;li>=0;li--){
+    if(comp.vLayers[li].visible===false)continue;
+    var lid=comp.vLayers[li].id;
+    comp.clips.filter(function(c){return c.layerId===lid;}).forEach(function(clip){
+      if(clip.compId)return;
+      var lt=t-clip.tStart;if(lt<0||lt>=clip.dur)return;
+      var frame=getFrameFromClip(clip,lt);if(!frame)return;
+      applyClipToCtx(octx,frame,clip,lt,compW,compH);
+    });
+  }
+  return oc;
+}
+
+function calcOp(clip,lt){
+  var base=clip.opacity!==undefined?clip.opacity:1;
+  var op=base;
+  if(clip.fadeIn>0&&lt<clip.fadeIn)op=base*(lt/clip.fadeIn);
+  if(clip.fadeOut>0&&lt>clip.dur-clip.fadeOut)op=base*((clip.dur-lt)/clip.fadeOut);
+  return Math.max(0,Math.min(1,op));
+}
+
+function applyClipToCtx(ctx2,frame,clip,lt,compW,compH){
+  var op=calcOp(clip,lt);if(op<=0)return;
+  var blend=clip.blendMode||'source-over';
+  var blur=clip.blur||0;
+  ctx2.save();
+  ctx2.globalAlpha=op;
+  ctx2.globalCompositeOperation=blend;
+  ctx2.translate(compW/2+(clip.x||0),compH/2+(clip.y||0));
+  ctx2.scale(clip.scale||1,clip.scale||1);
+  var nd=clipNatDims(clip);
+  if(blur>0){
+    ctx2.filter='blur('+blur+'px)';
+    ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);
+    ctx2.filter='none';
+  } else {
+    ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);
+  }
+  ctx2.restore();
+}
+
+function renderFrame(){
+  var comp=AC();
+  ctx.clearRect(0,0,CW,CH);
+  if(!comp)return;
+  var compW=comp.width||CW, compH=comp.height||CH;
+  for(var li=comp.vLayers.length-1;li>=0;li--){
+    if(comp.vLayers[li].visible===false)continue;
+    var lid=comp.vLayers[li].id;
+    comp.clips.filter(function(c){return c.layerId===lid;}).forEach(function(clip){
+      var lt=S.time-clip.tStart;if(lt<0||lt>=clip.dur)return;
+      var frame=getFrameFromClip(clip,lt);if(!frame)return;
+      applyClipToCtx(ctx,frame,clip,lt,compW,compH);
+    });
+  }
+  if(!isExporting&&S.selId){var sel=findClip(S.selId);if(sel&&!isAClip(S.selId)){var lt2=S.time-sel.tStart;if(lt2>=0&&lt2<sel.dur)drawTransformHandles(sel);}}
+}
+
+function drawTransformHandles(clip){
+  var nd=clipNatDims(clip);
+  var cx=CW/2+(clip.x||0),cy=CH/2+(clip.y||0);
+  var hw=nd.w/2*(clip.scale||1),hh=nd.h/2*(clip.scale||1),hr=handleRadius()*0.9;
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.75)';ctx.lineWidth=Math.max(1,CW/1920*1.5);ctx.setLineDash([Math.round(CW/120),Math.round(CW/240)]);
+  ctx.strokeRect(cx-hw,cy-hh,hw*2,hh*2);ctx.setLineDash([]);
+  [{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}].forEach(function(c){
+    ctx.beginPath();ctx.arc(c.x,c.y,hr,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
+    ctx.strokeStyle='#2e6ea6';ctx.lineWidth=Math.max(1.5,CW/960);ctx.stroke();
+  });
+  ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;var cs=hr*0.8;
+  ctx.beginPath();ctx.moveTo(cx-cs,cy);ctx.lineTo(cx+cs,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy-cs);ctx.lineTo(cx,cy+cs);ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Media sync ───────────────────────────────────────────────────────────
+function syncMedia(){
+  var comp=AC();if(!comp)return;
+  var t=S.time;
+  comp.clips.forEach(function(clip){
+    if(clip.compId)return;
+    var a=findAsset(clip.assetId);if(!a||a.type!=='vid'||a.stub)return;
+    var lt=t-clip.tStart;
+    if(lt>=0&&lt<clip.dur){
+      var srcT=clip.trimIn+lt*(clip.speed||1);
+      if(Math.abs(a.videoEl.currentTime-srcT)>0.15)a.videoEl.currentTime=srcT;
+      if(S.playing){a.videoEl.playbackRate=Math.max(0.0625,Math.min(16,clip.speed||1));if(a.videoEl.paused)a.videoEl.play().catch(function(){});}
+      else if(!a.videoEl.paused)a.videoEl.pause();
+    } else if(!a.videoEl.paused)a.videoEl.pause();
+  });
+  comp.aClips.forEach(function(clip){
+    var a=findAsset(clip.assetId);if(!a||a.type!=='aud'||a.stub)return;
+    var lt=t-clip.tStart;
+    if(lt>=0&&lt<clip.dur){
+      a.audioEl.volume=Math.min(1,Math.max(0,clip.vol||1));
+      var srcT=clip.trimIn+lt*(clip.speed||1);
+      if(Math.abs(a.audioEl.currentTime-srcT)>0.25)a.audioEl.currentTime=srcT;
+      if(S.playing&&a.audioEl.paused)a.audioEl.play().catch(function(){});
+      else if(!S.playing&&!a.audioEl.paused)a.audioEl.pause();
+    } else if(!a.audioEl.paused)a.audioEl.pause();
+  });
+}
+
+// ─── Playback ─────────────────────────────────────────────────────────────
+function updateTimeDisp(){
+  var comp=AC();
+  // 表示は dur*fps-1 でキャップ（0始まりなので最終フレーム番号は dur*fps-1）
+  var dispT=S.time;
+  if(comp){var maxDispT=(Math.round(comp.dur*S.fps)-1)/S.fps;if(dispT>maxDispT)dispT=maxDispT;}
+  var s=fmtTime(dispT);g('timeDisp').textContent=s;g('pvTime').textContent=s;
+}
+function togglePlay(){S.playing?pause():play();}
+var _lastTs=null;
+function play(){S.playing=true;_lastTs=null;g('btnPlay').textContent='⏸ 停止';syncMedia();}
+function pause(){S.playing=false;g('btnPlay').textContent='▶ 再生';syncMedia();}
+function stopAll(){pause();S.time=0;syncMedia();updatePlayhead();updateTimeDisp();}
+
+;(function loop(ts){
+  if(S.playing){
+    var comp=AC();
+    if(_lastTs!==null){S.time+=(ts-_lastTs)/1000;if(comp&&S.time>=comp.dur){S.time=comp.dur;pause();}}
+    _lastTs=ts;syncMedia();updatePlayhead();updateTimeDisp();
+    var right=g('tlRight'),px=timeToX(S.time)-right.scrollLeft;
+    if(px>right.clientWidth*0.7||px<0)right.scrollLeft=Math.max(0,timeToX(S.time)-right.clientWidth*0.3);
+  } else {_lastTs=null;}
+  renderFrame();
+  requestAnimationFrame(loop);
+})();
+
+// ─── Properties panel ─────────────────────────────────────────────────────
+function renderProps(){
+  var pi=g('propsInner');
+  if(!S.selId){pi.innerHTML='<div id="noSel">クリップを選択するか<br>素材をタイムラインへ<br>ドロップしてください</div>';return;}
+  var clip=findClip(S.selId);if(!clip){pi.innerHTML='<div id="noSel">選択なし</div>';return;}
+  var isA=isAClip(S.selId);
+  var a=clip.compId?null:findAsset(clip.assetId);
+  var aDur=clip.compId?clip.dur:maxSrc(a);
+  var c=AC();var compDur=c?c.dur:60;
+  var fs=+(1/S.fps).toFixed(6);
+
+  function mkRow(label,id,min,max,step,val,code){
+    var dec=step<0.1?2:step<1?1:0;
+    return '<div class="pr"><div class="pl">'+label+' <span id="'+id+'">'+val.toFixed(dec)+'</span></div>'
+      +'<input type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'" oninput="'+code+'" onchange="pushHistory()"></div>';
+  }
+  function mkTimeRow(label,id,min,max,val,code){
+    return '<div class="pr"><div class="pl">'+label+' <span id="'+id+'">'+fmtTime(val)+'</span></div>'
+      +'<input type="range" min="'+min+'" max="'+max+'" step="'+fs+'" value="'+val+'" oninput="'+code+'" onchange="pushHistory()"></div>';
+  }
+
+  if(isA){
+    pi.innerHTML='<div class="ps">配置</div>'
+      +mkTimeRow('開始','pTS',0,compDur,clip.tStart,"setProp('tStart',+this.value);g('pTS').textContent=fmtTime(+this.value);rebuildTl();")
+      +mkTimeRow('長さ','pD',fs,Math.max(aDur,30),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
+      +'<div class="ps">音量</div>'
+      +mkRow('音量','pV',0,1,0.01,clip.vol||1,"setProp('vol',+this.value);g('pV').textContent=(+this.value).toFixed(2);")
+      +'<button class="btn sm red" style="margin-top:10px" onclick="deleteSelClip()">クリップ削除</button>';
+    return;
+  }
+
+  var maxFade=snapToFrame(Math.max(fs,clip.dur*0.95));
+  var compRefNote=clip.compId?'<p style="font-size:11px;color:#a080f0;margin-bottom:6px">◆ ネストされたコンポ</p>':'';
+  var solidSection='';
+  if(a&&a.type==='solid'){
+    solidSection='<div class="ps">平面の色</div>'
+      +'<div class="pr" style="display:flex;align-items:center;gap:8px;">'
+      +'<input type="color" id="pSolidColor" value="'+(a.color||'#000000')+'" oninput="changeSolidColor(\''+a.id+'\',this.value)" onchange="pushHistory()" style="width:44px;height:28px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;padding:1px;">'
+      +'<span id="pSolidColorHex" style="font-family:monospace;font-size:11px;color:#aaa;">'+(a.color||'#000000')+'</span>'
+      +'</div>';
+  }
+  // 合成モードの選択肢
+  var blendModes=[
+    ['source-over','通常'],['screen','スクリーン'],['lighter','加算'],
+    ['multiply','乗算'],['overlay','オーバーレイ'],['difference','反転（差分）']
+  ];
+  var blendSel='<div class="ps">合成モード</div><div class="pr"><select style="width:100%;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:4px 6px;font-size:12px;" onchange="setProp(\'blendMode\',this.value);pushHistory()">';
+  var curBlend=clip.blendMode||'source-over';
+  blendModes.forEach(function(m){blendSel+='<option value="'+m[0]+'"'+(curBlend===m[0]?' selected':'')+'>'+m[1]+'</option>';});
+  blendSel+='</select></div>';
+
+  pi.innerHTML=compRefNote+'<div class="ps">配置</div>'
+    +mkTimeRow('開始','pTS',0,compDur,clip.tStart,"setProp('tStart',+this.value);g('pTS').textContent=fmtTime(+this.value);rebuildTl();")
+    +mkTimeRow('長さ','pD',fs,Math.max(aDur,30),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
+    +(clip.compId?'':mkTimeRow('素材オフセット','pTI',0,Math.max(0,aDur-fs),clip.trimIn||0,"setProp('trimIn',+this.value);g('pTI').textContent=fmtTime(+this.value);rebuildTl();"))
+    +solidSection
+    +'<div class="ps">透明度 / 合成</div>'
+    +mkRow('透明度','pOp',0,1,0.01,clip.opacity!==undefined?clip.opacity:1,"setProp('opacity',+this.value);g('pOp').textContent=(+this.value).toFixed(2);")
+    +blendSel
+    +'<div class="ps">エフェクト</div>'
+    +mkRow('ガウスぼかし','pBlur',0,100,1,clip.blur||0,"setProp('blur',+this.value);g('pBlur').textContent=(+this.value).toFixed(0);")
+    +'<div class="ps">タイムリマップ</div>'
+    +mkRow('スピード','pSpd',0.1,10,0.05,clip.speed||1,"setProp('speed',+this.value);g('pSpd').textContent=(+this.value).toFixed(2);rebuildTl();")
+    +'<div class="ps">フェード</div>'
+    +'<p style="font-size:11px;color:#555;line-height:1.5;margin-bottom:6px">重複部分でINとOUTを設定するとクロスフェード</p>'
+    +mkTimeRow('フェードイン','pFI',0,maxFade,clip.fadeIn,"setProp('fadeIn',+this.value);g('pFI').textContent=fmtTime(+this.value);")
+    +mkTimeRow('フェードアウト','pFO',0,maxFade,clip.fadeOut,"setProp('fadeOut',+this.value);g('pFO').textContent=fmtTime(+this.value);")
+    +'<div class="ps">位置 <span style="font-size:10px;color:#444">(プレビューでドラッグ可)</span></div>'
+    +'<div class="pr"><div class="pl">X <span id="pX">'+Math.round(clip.x||0)+'</span></div></div>'
+    +'<div class="pr"><div class="pl">Y <span id="pY">'+Math.round(clip.y||0)+'</span></div></div>'
+    +'<div class="pr"><div class="pl">スケール <span id="pSc">'+((clip.scale||1).toFixed(2))+'</span></div></div>'
+    +(function(){var nd=clipNatDims(clip);var sc=clip.scale||1;return '<div class="pr"><div class="pl" style="color:#555">実サイズ <span style="color:#888;font-family:monospace;font-size:10px">'+Math.round(nd.w*sc)+'×'+Math.round(nd.h*sc)+'px</span></div></div>';})()
+    +'<button class="btn sm" style="margin-bottom:4px" onclick="resetTransform()">トランスフォームをリセット</button>'
+    +'<button class="btn sm red" style="margin-top:6px" onclick="deleteSelClip()">クリップ削除</button>';
+}
+function resetTransform(){var clip=findClip(S.selId);if(!clip)return;pushHistory();clip.x=0;clip.y=0;clip.scale=1;renderProps();}
+function changeSolidColor(assetId,color){
+  var a=findAsset(+assetId);if(!a||a.type!=='solid')return;
+  a.color=color;
+  // オフスクリーンキャンバスを再塗りして frames を更新
+  var oc=document.createElement('canvas');oc.width=CW;oc.height=CH;
+  var octx=oc.getContext('2d');octx.fillStyle=color;octx.fillRect(0,0,CW,CH);
+  createImageBitmap(oc).then(function(bmp){a.frames=[bmp];a.solidW=CW;a.solidH=CH;});
+  // 素材パネルのスウォッチも更新
+  renderAssets();
+  var hex=g('pSolidColorHex');if(hex)hex.textContent=color;
+}
+function setProp(key,val){
+  var c=findClip(S.selId);if(!c)return;
+  var timeKeys={tStart:1,dur:1,trimIn:1,fadeIn:1,fadeOut:1};if(timeKeys[key])val=snapToFrame(val);
+  c[key]=val;
+}function deleteSelClip(){
+  var comp=AC();if(!comp)return;
+  pushHistory();
+  comp.clips=comp.clips.filter(function(c){return c.id!==S.selId;});
+  comp.aClips=comp.aClips.filter(function(c){return c.id!==S.selId;});
+  S.selId=null;rebuildTl();renderProps();
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────
+function showExpModal(){
+  var comp=AC();
+  g('expResLbl').textContent=CW+'×'+CH;
+  g('expFpsLbl').textContent=S.fps+' fps';
+  g('expInfo').textContent=typeof VideoEncoder==='undefined'
+    ?'⚠ WebCodecs非対応。Chrome 94以降が必要です。'
+    :'コンポ「'+(comp?comp.name:'?')+'」をH.264 MP4で書き出します。\n音声トラックがある場合はAAC音声も含まれます。\n\n総フレーム数: '+(comp?Math.ceil(comp.dur*S.fps):0)+' フレーム';
+  g('expModal').classList.add('show');
+}
+function hideExpModal(){g('expModal').classList.remove('show');}
+
+async function startExport(){
+  if(typeof VideoEncoder==='undefined'){alert('Chrome 94以降が必要です。');return;}
+  hideExpModal();
+  var comp=AC();if(!comp)return;
+  var bitrate=parseInt(g('expBitrate').value,10)||8000000;
+  showLoad('mp4-muxerを読み込み中...','',0.02);await tick();
+  if(!window.Mp4Muxer){try{await loadScript('https://cdn.jsdelivr.net/npm/mp4-muxer@5/build/mp4-muxer.js');}catch(e){hideLoad();alert('mp4-muxer読み込み失敗: '+e.message);return;}}
+  var wasPlaying=S.playing;if(wasPlaying)pause();
+  var savedTime=S.time;isExporting=true;
+  setLoad(0.03,'音声ミックス中...','');await tick();
+  var hasAudio=comp.aClips.length>0&&S.assets.some(function(a){return a.type==='aud'&&!a.stub;});
+  var mixedAudio=null;if(hasAudio){try{mixedAudio=await mixAudio(comp);}catch(e){console.warn('audio mix fail',e);}}
+  var codec=await pickVideoCodec();
+  if(!codec){isExporting=false;hideLoad();alert('H.264コーデックが見つかりませんでした。');S.time=savedTime;return;}
+  var sr=mixedAudio?mixedAudio.sampleRate:44100,nCh=mixedAudio?mixedAudio.numberOfChannels:2;
+  var doAudio=!!(mixedAudio&&typeof AudioEncoder!=='undefined');
+  var muxCfg={target:new window.Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:CW,height:CH},fastStart:'in-memory'};
+  if(doAudio)muxCfg.audio={codec:'aac',sampleRate:sr,numberOfChannels:nCh};
+  var muxer=new window.Mp4Muxer.Muxer(muxCfg);
+  var vEncErr=null;
+  var vEnc=new VideoEncoder({output:function(c,m){muxer.addVideoChunk(c,m);},error:function(e){vEncErr=e;}});
+  vEnc.configure({codec:codec,width:CW,height:CH,bitrate:bitrate,framerate:S.fps});
+  if(doAudio&&mixedAudio){
+    setLoad(0.05,'音声エンコード中...','');await tick();
+    try{
+      var aEnc=new AudioEncoder({output:function(c,m){muxer.addAudioChunk(c,m);},error:function(e){console.warn(e);}});
+      aEnc.configure({codec:'mp4a.40.2',sampleRate:sr,numberOfChannels:nCh,bitrate:128000});
+      var fsz=1024,total=mixedAudio.length;
+      for(var off=0;off<total;off+=fsz){
+        var len=Math.min(fsz,total-off);var pl=new Float32Array(len*nCh);
+        for(var ch=0;ch<nCh;ch++){var cd=mixedAudio.getChannelData(ch);pl.set(cd.subarray(off,off+len),ch*len);}
+        var ad=new AudioData({format:'f32-planar',sampleRate:sr,numberOfFrames:len,numberOfChannels:nCh,timestamp:Math.round(off*1e6/sr),data:pl});
+        aEnc.encode(ad);ad.close();if(off%(fsz*50)===0){setLoad(0.05+0.05*(off/total));await tick();}
+      }
+      await aEnc.flush();
+    }catch(e){console.warn('audio encode fail',e);}
+  }
+  var totalF=Math.ceil(comp.dur*S.fps);setLoad(0.1,'映像エンコード中...','0/'+totalF);await tick();
+  for(var f=0;f<totalF;f++){
+    if(vEncErr)break;
+    S.time=f/S.fps;await seekAllVideos(comp,S.time);renderFrame();
+    var ts=Math.round(f*1e6/S.fps),dur2=Math.round(1e6/S.fps);
+    var vf=new VideoFrame(C,{timestamp:ts,duration:dur2});vEnc.encode(vf,{keyFrame:f%60===0});vf.close();
+    if(f%8===0){setLoad(0.1+0.89*(f/totalF),'映像エンコード中...',(f+1)+'/'+totalF);await tick();}
+  }
+  if(vEncErr){isExporting=false;hideLoad();alert('エンコードエラー: '+vEncErr.message);S.time=savedTime;return;}
+  setLoad(0.99,'ファイル生成中...','');await tick();
+  await vEnc.flush();muxer.finalize();
+  var buf=muxer.target.buffer;var blob=new Blob([buf],{type:'video/mp4'});
+  var url=URL.createObjectURL(blob);var aEl=document.createElement('a');aEl.href=url;aEl.download='output.mp4';aEl.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},10000);
+  isExporting=false;S.time=savedTime;syncMedia();updatePlayhead();updateTimeDisp();hideLoad();
+  alert('書き出し完了！\nファイルサイズ: '+(buf.byteLength/1024/1024).toFixed(1)+' MB');
+}
+
+async function pickVideoCodec(){var codecs=['avc1.640034','avc1.4d0034','avc1.420034','avc1.42001f'];for(var i=0;i<codecs.length;i++){try{var r=await VideoEncoder.isConfigSupported({codec:codecs[i],width:CW,height:CH});if(r.supported)return codecs[i];}catch(e){}}return null;}
+async function seekAllVideos(comp,t){
+  var ps=[];
+  comp.clips.forEach(function(clip){
+    if(clip.compId)return;
+    var a=findAsset(clip.assetId);if(!a||a.type!=='vid'||a.stub)return;
+    var lt=t-clip.tStart;if(lt<0||lt>=clip.dur)return;
+    var srcT=clip.trimIn+lt*(clip.speed||1);
+    if(Math.abs(a.videoEl.currentTime-srcT)>0.001){
+      ps.push(new Promise(function(r){var timer=setTimeout(r,400);a.videoEl.onseeked=function(){clearTimeout(timer);a.videoEl.onseeked=null;r();};a.videoEl.currentTime=srcT;}));
+    }
+  });
+  await Promise.all(ps);
+}
+async function mixAudio(comp){
+  var sr=44100;var offCtx=new OfflineAudioContext(2,Math.ceil(sr*comp.dur),sr);var ps=[];
+  comp.aClips.forEach(function(clip){
+    var a=findAsset(clip.assetId);if(!a||a.type!=='aud'||a.stub||!a.srcUrl)return;
+    ps.push(fetch(a.srcUrl).then(function(r){return r.arrayBuffer();}).then(function(buf){return offCtx.decodeAudioData(buf);}).then(function(ab){
+      var src=offCtx.createBufferSource();src.buffer=ab;var gain=offCtx.createGain();gain.gain.value=Math.min(1,Math.max(0,clip.vol||1));
+      src.connect(gain);gain.connect(offCtx.destination);
+      src.start(Math.max(0,clip.tStart),clip.trimIn||0,Math.min(clip.dur,ab.duration-(clip.trimIn||0)));
+    }).catch(function(e){console.warn(e);}));
+  });
+  await Promise.all(ps);return await offCtx.startRendering();
+}
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('Script load failed: '+src));};document.head.appendChild(s);});}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+var _initComp=mkComp('Comp1',CW,CH);
+S.comps.push(_initComp);
+S.activeCompId=_initComp.id;
+renderCompTabs();
+renderAssets();
+rebuildTl();
+updateTimeDisp();
+setPvZoom('fit');
+pushHistory();
+</script>
+</body>
+</html>
