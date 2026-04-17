@@ -1,5 +1,5 @@
 // ============================================================
-// Mini2AE for After Effects  v1.1
+// AEminiToAE for After Effects  v1.1
 // タイムライン動画エディタ ↔ After Effects 双方向ブリッジ
 //
 // 使い方:
@@ -95,23 +95,10 @@
     titleRow.alignChildren = ['center', 'top'];
     var titleTxt = titleRow.add('statictext', undefined, 'Mini2AE');
     titleTxt.graphics.font = ScriptUI.newFont('dialog', 'BOLD', 14);
-    titleRow.add('statictext', undefined, 'タイムライン動画エディタ  ↔  After Effects');
-
-    // ── Export ──
-    var expPanel = win.add('panel', undefined, 'エクスポート  (AE → AEmini JSON)');
-    expPanel.alignChildren = ['fill', 'top'];
-    expPanel.margins = [12, 14, 12, 10];
-    expPanel.add('statictext', [0,0,360,28],
-      'アクティブなコンポをAEmini JSON形式で書き出します。', {multiline:true});
-    var expOptGrp = expPanel.add('group');
-    expOptGrp.add('statictext', undefined, '対象:');
-    var expMode = expOptGrp.add('dropdownlist', undefined,
-      ['アクティブなコンポのみ', '全コンポ (ネスト含む)']);
-    expMode.selection = 1;
-    var expBtn = expPanel.add('button', undefined, '書き出し (Export →)');
+    titleRow.add('statictext', undefined, 'AEmini  ↔  After Effects');
 
     // ── Import ──
-    var impPanel = win.add('panel', undefined, 'インポート  (AEmini JSON → AE)');
+    var impPanel = win.add('panel', undefined, 'インポート  (AEmini JSON → After Effects)');
     impPanel.alignChildren = ['fill', 'top'];
     impPanel.margins = [12, 14, 12, 10];
     impPanel.add('statictext', [0,0,360,28],
@@ -123,6 +110,19 @@
     var folderEdit = folderGrp.add('edittext', [0,0,190,20], defSozai);
     var folderPickBtn = folderGrp.add('button', [0,0,28,20], '…');
     var impBtn = impPanel.add('button', undefined, '読み込み (← Import)');
+
+    // ── Export ──
+    var expPanel = win.add('panel', undefined, 'エクスポート  (After Effects → AEmini JSON)');
+    expPanel.alignChildren = ['fill', 'top'];
+    expPanel.margins = [12, 14, 12, 10];
+    expPanel.add('statictext', [0,0,360,28],
+      'アクティブなコンポをAEmini JSON形式で書き出します。', {multiline:true});
+    var expOptGrp = expPanel.add('group');
+    expOptGrp.add('statictext', undefined, '対象:');
+    var expMode = expOptGrp.add('dropdownlist', undefined,
+      ['アクティブなコンポのみ', '全コンポ (ネスト含む)']);
+    expMode.selection = 1;
+    var expBtn = expPanel.add('button', undefined, '書き出し (Export →)');
 
     // ── Log ──
     var logPanel = win.add('panel', undefined, 'ログ');
@@ -622,37 +622,87 @@
     var comps = proj.comps || [];
     for (var ci = 0; ci < comps.length; ci++) {
       var tc = comps[ci];
+      var tcW = tc.width || cw;
+      var tcH = tc.height || ch;
       try {
         var aeComp = app.project.items.addComp(
-          tc.name || ('Comp' + (ci + 1)), cw, ch, 1.0, tc.dur || 10, fps);
+          tc.name || ('Comp' + (ci + 1)), tcW, tcH, 1.0, tc.dur || 10, fps);
         compMap[tc.id] = aeComp;
-        log('コンポ作成: ' + tc.name + '  (' + (tc.dur || 10) + '秒)');
+        log('コンポ作成: ' + tc.name + '  (' + (tc.dur || 10) + '秒)  ' + tcW + 'x' + tcH);
       } catch(e) {
         log('[エラー] コンポ作成失敗 (' + (tc.name||'?') + '): ' + e.message);
       }
     }
 
+    // ── コンポをフォルダに移動 ────────────────────────────────────────────
+    for (var ci2 = 0; ci2 < comps.length; ci2++) {
+      var tc2 = comps[ci2];
+      if (!tc2.folderId) continue;
+      var compFolderTarget = aeFolderMap[tc2.folderId];
+      if (!compFolderTarget) continue;
+      try {
+        if (compMap[tc2.id]) compMap[tc2.id].parentFolder = compFolderTarget;
+      } catch(e) {}
+    }
+
+    // ── タイムライン未配置の平面をAEプロジェクトに生成 ──────────────────
+    // solidColorMapに登録されているが、どのコンポのレイヤーにも使われていない平面
+    // → AEプロジェクトパネルに単体FootageItemとして生成する
+    var usedSolidIds = {};
+    for (var ci3 = 0; ci3 < comps.length; ci3++) {
+      var tc3 = comps[ci3];
+      var clips3 = tc3.clips || [];
+      for (var cj = 0; cj < clips3.length; cj++) {
+        if (clips3[cj].assetId) usedSolidIds[clips3[cj].assetId] = true;
+      }
+    }
+    for (var sid in solidColorMap) {
+      if (!solidColorMap.hasOwnProperty(sid)) continue;
+      if (usedSolidIds[sid]) continue; // 配置済みはスキップ
+      var si = solidColorMap[sid];
+      try {
+        var unplacedSolid = app.project.items.addSolid(
+          [si.r, si.g, si.b], si.name, cw, ch, 1.0);
+        // フォルダ移動
+        try {
+          if (si.folderId && aeFolderMap[si.folderId]) {
+            unplacedSolid.parentFolder = aeFolderMap[si.folderId];
+          } else {
+            unplacedSolid.parentFolder = app.project.rootFolder;
+          }
+        } catch(e) {}
+        log('  未配置平面を追加: ' + si.name);
+      } catch(e) {
+        log('  [エラー] 未配置平面の追加失敗 (' + si.name + '): ' + e.message);
+      }
+    }
+
     // ── 素材をフォルダに移動 ──────────────────────────────────────────────
-    // assetMap 内の footage item を対応するフォルダへ
     for (var ai2 = 0; ai2 < assets.length; ai2++) {
       var ast = assets[ai2];
       if (!ast || !ast.folderId) continue;
       var targetFolder = aeFolderMap[ast.folderId];
       if (!targetFolder) continue;
-      // ファイル素材
       if (assetMap[ast.id]) {
         try { assetMap[ast.id].parentFolder = targetFolder; } catch(e) {}
       }
     }
 
     // ── レイヤー配置 ─────────────────────────────────────────────────────
+    // assetId → 素材表示名 のマップを作成（不明素材の名前に使う）
+    var assetNameMap = {};
+    for (var ani = 0; ani < assets.length; ani++) {
+      var an = assets[ani];
+      if (an && an.id) assetNameMap[an.id] = an.displayName || an.name || ('id:' + an.id);
+    }
+
     for (var ci = 0; ci < comps.length; ci++) {
       var tc   = comps[ci];
       var aeC  = compMap[tc.id];
       if (!aeC) continue;
       log('レイヤー配置: ' + tc.name + ' ...');
       try {
-        populateComp(aeC, tc, assetMap, solidColorMap, compMap, aeFolderMap, cw, ch, log);
+        populateComp(aeC, tc, assetMap, assetNameMap, solidColorMap, compMap, aeFolderMap, cw, ch, log);
       } catch(e) {
         log('[エラー] レイヤー配置中に予期せぬエラー: ' + e.message + (e.line ? ' (line ' + e.line + ')' : ''));
       }
@@ -692,7 +742,7 @@
     log('── インポート完了 ──');
   }
 
-  function populateComp(aeComp, tlvComp, assetMap, solidColorMap, compMap, aeFolderMap, cw, ch, log) {
+  function populateComp(aeComp, tlvComp, assetMap, assetNameMap, solidColorMap, compMap, aeFolderMap, cw, ch, log) {
     var vLayers = tlvComp.vLayers || [];
     var clips   = tlvComp.clips   || [];
     var aTracks = tlvComp.aTracks || [];
@@ -744,6 +794,16 @@
           try { slayer.startTime = tStart; } catch(e) {}
           try { slayer.inPoint  = tStart;       } catch(e) {}
           try { slayer.outPoint = tStart + dur; } catch(e) {}
+          // 平面のトランスフォーム（位置・スケール）を反映
+          try {
+            if ((clip.x || 0) !== 0 || (clip.y || 0) !== 0) {
+              slayer.transform.position.setValue([cw/2 + (Number(clip.x)||0), ch/2 + (Number(clip.y)||0)]);
+            }
+          } catch(e) {}
+          try {
+            var solidSc = Number(clip.scale) || 1;
+            if (Math.abs(solidSc - 1) > 0.001) slayer.transform.scale.setValue([solidSc*100, solidSc*100]);
+          } catch(e) {}
           // フェードイン/アウト
           try {
             var fi = Number(clip.fadeIn)  || 0;
@@ -772,7 +832,34 @@
       } catch(e) {}
 
       if (!src) {
-        log('  [スキップ] 素材なし (assetId=' + clip.assetId + ')');
+        // 素材が見つからない場合: グレーの平面で代用（削除せず位置・サイズも再現）
+        // 素材名（例: "ペン 5f"）を使って識別できるようにする
+        var assetDispName = (clip.assetId && assetNameMap && assetNameMap[clip.assetId]) ? assetNameMap[clip.assetId] : '';
+        var phName = assetDispName ? (assetDispName + ' [不明]') : (layName ? layName + ' [不明]' : '不明_' + (clip.assetId || '?'));
+        log('  [不明] 素材なし → グレー平面で代用: ' + phName);
+        try {
+          var slayer = aeComp.layers.addSolid([0.45, 0.45, 0.45], phName, cw, ch, 1.0, dur);
+          try {
+            if (solidColorMap && slayer.source) {
+              slayer.source.parentFolder = app.project.rootFolder;
+            }
+          } catch(e2) {}
+          try { slayer.startTime = tStart - trimIn; } catch(e2) { try { slayer.startTime = 0; } catch(e3) {} }
+          try { slayer.inPoint  = tStart; } catch(e2) {}
+          try { slayer.outPoint = tStart + dur; } catch(e2) {}
+          try {
+            if ((clip.x || 0) !== 0 || (clip.y || 0) !== 0) {
+              slayer.transform.position.setValue([cw/2 + (Number(clip.x)||0), ch/2 + (Number(clip.y)||0)]);
+            }
+          } catch(e2) {}
+          try {
+            var phSc = Number(clip.scale) || 1;
+            if (Math.abs(phSc - 1) > 0.001) slayer.transform.scale.setValue([phSc*100, phSc*100]);
+          } catch(e2) {}
+          log('  V (不明グレー平面): ' + slayer.name);
+        } catch(e) {
+          log('  [エラー] 不明素材の代用平面追加失敗: ' + e.message);
+        }
         continue;
       }
 
@@ -801,6 +888,25 @@
             var opProp2 = layer.transform.opacity;
             if (fi2 > 0) { opProp2.setValueAtTime(tStart, 0); opProp2.setValueAtTime(tStart + fi2, 100); }
             if (fo2 > 0) { opProp2.setValueAtTime(tStart + dur - fo2, 100); opProp2.setValueAtTime(tStart + dur, 0); }
+          }
+        } catch(e) {}
+        // ── ガウスぼかし → AE「ブラー（ガウス）」エフェクト ──────────────
+        try {
+          var blurVal = Number(clip.blur) || 0;
+          if (blurVal > 0) {
+            // "Gaussian Blur" (英語版) / "ブラー（ガウス）" (日本語版) を試みる
+            var blurEffect = null;
+            try { blurEffect = layer.Effects.addProperty('ADBE Gaussian Blur 2'); } catch(e) {}
+            if (!blurEffect) {
+              try { blurEffect = layer.Effects.addProperty('Gaussian Blur'); } catch(e) {}
+            }
+            if (blurEffect) {
+              // ブラーの数値 (property index 1)
+              try { blurEffect.property(1).setValue(blurVal); } catch(e) {}
+              // エッジピクセルの繰り返し (property index 3) = true
+              try { blurEffect.property(3).setValue(true); } catch(e) {}
+              log('  ブラー追加: ' + blurVal + 'px → ' + layer.name);
+            }
           }
         } catch(e) {}
         log('  V: ' + layer.name);

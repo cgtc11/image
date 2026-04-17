@@ -80,7 +80,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 #tlHdr{padding:3px 8px;background:#141414;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:5px;flex-shrink:0}
 #tlHdr span{font-size:11px;color:#444;flex:1}
 #tlBody{flex:1;display:flex;overflow:hidden;min-height:0}
-#tlLeft{width:75px;flex-shrink:0;background:#141414;border-right:1px solid #1e1e1e;display:flex;flex-direction:column;overflow:hidden}
+#tlLeft{width:100px;flex-shrink:0;background:#141414;border-right:1px solid #1e1e1e;display:flex;flex-direction:column;overflow:hidden}
 #tlLblRuler{height:24px;border-bottom:1px solid #1e1e1e;flex-shrink:0}
 #tlLblRows{flex:1;overflow:hidden}
 #tlRight{flex:1;overflow:auto;position:relative}
@@ -89,8 +89,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 #rulerCanvas{display:block}
 .tl-row{height:44px;border-bottom:1px solid #1e1e1e;position:relative;flex-shrink:0}
 .tl-row.drop-hi{background:rgba(46,110,166,.09)}
-.lbl-row{height:44px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;padding:0 5px;gap:3px;flex-shrink:0}
-.lbl-row span{font-size:11px;color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbl-row{height:44px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;padding:0 5px;gap:1px;flex-shrink:0}
+.lbl-row span{font-size:11px;color:#666;margin-right: auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lbl-del{font-size:11px;color:#662222;cursor:pointer;width:14px;text-align:center;border-radius:2px}
 .lbl-del:hover{background:#2a0a0a;color:#ff6060}
 .lbl-eye{cursor:pointer;width:18px;height:18px;text-align:center;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;user-select:none;font-style:normal}
@@ -160,13 +160,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   <label class="lbl">尺(秒)<input type="number" id="inDur" value="10" min="1" max="3600" onchange="setActiveDur(+this.value)"></label>
   <button class="btn act" id="btnTimeMode" onclick="toggleTimeMode()" title="フレーム/秒 切替">F</button>
   <div class="sep"></div>
+  <button class="btn" id="btnPen" onclick="togglePenMode()" title="ペン描画モード">✏</button>
+  <input type="color" id="penColor" value="#ff0000" title="ペン色" style="width:28px;height:26px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;padding:1px;flex-shrink:0;">
+  <label class="lbl" id="penSizeWrap" style="display:flex;gap:3px">サイズ<input type="range" id="penSize" min="1" max="40" value="4" style="width:60px"></label>
+  <div class="sep"></div>
   <button class="btn" onclick="saveProject()">💾 保存</button>
+  <button class="btn" onclick="collectAndSave()">💾 収集保存</button>
   <button class="btn" onclick="openProject()">📂 読込</button>
   <div class="sep"></div>
   <button class="btn grn" onclick="showExpModal()">▤ MP4書き出し</button>
-  <div style="margin-left:auto">
-    <label class="lbl">ズーム<input type="range" min="10" max="700" value="120" oninput="S.pxPerSec=+this.value;rebuildTl()"></label>
-  </div>
+  <button class="btn grn" onclick="showSeqExpModal()">▤ 連番書き出し</button>
 </div>
 
 <div id="main">
@@ -204,6 +207,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
         <span>素材→ドラッグ配置 ／ クリップドラッグ=移動 ／ 端=トリミング ／ Shift+端=タイムリマップ ／ Shift+ドラッグ=スナップ ／ Shift+Ctrl+D=分割</span>
         <button class="btn sm" onclick="addVLayer()">+映像</button>
         <button class="btn sm" onclick="addATrack()">+音声</button>
+        <label class="lbl" style="gap:3px;flex-shrink:0">ズーム<input id="zoomRange" type="range" min="10" max="700" value="120" style="width:70px" oninput="S.pxPerSec=+this.value;rebuildTl()"></label>
       </div>
       <div id="tlBody">
         <div id="tlLeft">
@@ -259,6 +263,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 <input type="file" id="fi-aud" accept="audio/*" style="display:none">
 <input type="file" id="fi-proj" accept=".json" style="display:none">
 
+<!-- Seq export modal -->
+<div id="seqExpModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:990;align-items:center;justify-content:center;">
+  <div class="exp-box">
+    <h2>連番書き出し</h2>
+    <div class="exp-row"><label>形式</label>
+      <select id="seqFmt"><option value="png">PNG</option><option value="jpg">JPG</option><option value="bmp">BMP</option></select>
+    </div>
+    <div class="exp-row"><label>コンポ</label><span id="seqCompLbl"></span></div>
+    <div class="exp-row"><label>フレーム数</label><span id="seqFrameLbl"></span></div>
+    <div class="exp-info">出力フォルダを選択してフレームを1枚ずつ書き出します。<br>※ File System Access API対応ブラウザ（Chrome）が必要です。</div>
+    <div class="exp-btns">
+      <button class="btn" onclick="g('seqExpModal').style.display='none'">キャンセル</button>
+      <button class="btn grn" onclick="startSeqExport()">フォルダ選択 → 書き出し</button>
+    </div>
+  </div>
+</div>
+<!-- Collect save modal -->
+<div id="collectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:990;align-items:center;justify-content:center;">
+  <div class="exp-box">
+    <h2>素材収集して保存</h2>
+    <div class="exp-info">プロジェクトJSONと同じフォルダに「assets」フォルダを作成し、素材をコピーします。<br>ブラウザの制限で実際のコピーはできませんが、収集リスト付きJSONを保存します。素材パスが記録されたJSONをAEスクリプトで利用できます。</div>
+    <div class="exp-btns">
+      <button class="btn" onclick="g('collectModal').style.display='none'">キャンセル</button>
+      <button class="btn grn" onclick="saveProject();g('collectModal').style.display='none'">JSONを保存</button>
+    </div>
+  </div>
+</div>
 <!-- Comp creation modal -->
 <div id="addCompModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:20px 22px;width:300px;">
@@ -424,13 +455,28 @@ function setPvZoom(z){
   ['zFit','z25','z50','z100'].forEach(function(id){g(id).classList.remove('act');});
   if(z==='fit'){
     g('zFit').classList.add('act');
-    C.style.width='';C.style.height='';C.style.maxWidth='100%';C.style.maxHeight='300px';
+    var pw=g('pvWrap');
+    // pvWrap の実際のサイズを取得してFit計算
+    var availW=(pw?pw.clientWidth:0)-20;
+    var availH=(pw?pw.clientHeight:0)-20;
+    if(availW>10&&availH>10){
+      var scaleW=availW/CW;
+      var scaleH=availH/CH;
+      var scale=Math.min(scaleW,scaleH);
+      var newW=Math.round(CW*scale);
+      var newH=Math.round(CH*scale);
+      C.style.maxWidth='none';C.style.maxHeight='none';
+      C.style.width=newW+'px';C.style.height=newH+'px';
+    } else {
+      // フォールバック: 高さ未確定なら初期スタイル
+      if(pw){pw.style.height='';pw.style.maxHeight='340px';}
+      C.style.width='';C.style.height='';C.style.maxWidth='100%';C.style.maxHeight='300px';
+    }
   } else {
     var m={0.25:'z25',0.5:'z50',1.0:'z100'};if(m[z])g(m[z]).classList.add('act');
     C.style.maxWidth='none';C.style.maxHeight='none';
     C.style.width=Math.round(CW*z)+'px';C.style.height=Math.round(CH*z)+'px';
   }
-  // チェッカーをキャンバスと同サイズに同期
   var chk=g('pvChecker');
   if(chk){chk.style.width=C.style.width||'';chk.style.height=C.style.height||'';}
 }
@@ -438,12 +484,14 @@ function screenToCanvas(e){var r=C.getBoundingClientRect();return{x:(e.clientX-r
 function handleRadius(){var r=C.getBoundingClientRect();return 14*CW/r.width;}
 
 // ─── Preview / Timeline resizer ───────────────────────────────────────────
+var _rDragActive=false;
 (function(){
   var resizer=document.getElementById('pvResizer');
   var pvWrap=document.getElementById('pvWrap');
   var _rDrag=false,_rStartY=0,_rStartH=0;
   resizer.addEventListener('mousedown',function(e){
-    _rDrag=true;_rStartY=e.clientY;_rStartH=pvWrap.offsetHeight;
+    _rDrag=true;_rDragActive=true;
+    _rStartY=e.clientY;_rStartH=pvWrap.offsetHeight;
     e.preventDefault();
   });
   document.addEventListener('mousemove',function(e){
@@ -451,9 +499,8 @@ function handleRadius(){var r=C.getBoundingClientRect();return 14*CW/r.width;}
     var newH=Math.max(60,Math.min(700,_rStartH+(e.clientY-_rStartY)));
     pvWrap.style.maxHeight=newH+'px';
     pvWrap.style.height=newH+'px';
-    setPvZoom(pvZoom);
   });
-  document.addEventListener('mouseup',function(){_rDrag=false;});
+  document.addEventListener('mouseup',function(){_rDrag=false;_rDragActive=false;});
 })();
 
 // ─── Loading overlay ──────────────────────────────────────────────────────
@@ -583,47 +630,94 @@ async function tryRestoreAsset(a){
 function createFolder(){var name=prompt('フォルダ名を入力してください','フォルダ'+(S.folders.length+1));if(!name)return;S.folders.push({id:nid(),name:name,open:true});renderAssets();}
 function renameFolder(id){var f=S.folders.find(function(f){return f.id===id;});if(!f)return;var n=prompt('フォルダ名を変更してください',f.name);if(n&&n.trim())f.name=n.trim();renderAssets();}
 function toggleFolder(id){var f=S.folders.find(function(f){return f.id===id;});if(f)f.open=!f.open;renderAssets();}
-function deleteFolder(id){S.assets.forEach(function(a){if(a.folderId===id)a.folderId=null;});S.folders=S.folders.filter(function(f){return f.id!==id;});renderAssets();}
-function assignToFolder(aid,fid){var a=findAsset(aid);if(a)a.folderId=fid||null;renderAssets();}
+function deleteFolder(id){S.assets.forEach(function(a){if(a.folderId===id)a.folderId=null;});S.folders.forEach(function(f){if(f.parentFolderId===id)f.parentFolderId=null;});S.folders=S.folders.filter(function(f){return f.id!==id;});renderAssets();}
+function assignToFolder(aid,fid){var a=findAsset(aid);if(a){a.folderId=fid||null;renderAssets();}}
+function assignCompToFolder(cid,fid){
+  var c=S.comps.find(function(c){return c.id===cid;});
+  if(c){c.folderId=fid||null;renderAssets();}
+}
+// フォルダAがフォルダBの子孫かチェック（循環参照防止）
+function isFolderDescendant(folderId,ancestorId){
+  var visited={};
+  var cur=folderId;
+  while(cur){
+    if(cur===ancestorId)return true;
+    if(visited[cur])return false;
+    visited[cur]=true;
+    var f=S.folders.find(function(f){return f.id===cur;});
+    cur=f?f.parentFolderId:null;
+  }
+  return false;
+}
+function assignFolderToFolder(moveFid,parentFid){
+  if(moveFid===parentFid)return;
+  if(parentFid&&isFolderDescendant(parentFid,moveFid))return;// 循環参照防止
+  var f=S.folders.find(function(f){return f.id===moveFid;});
+  if(f){f.parentFolderId=parentFid||null;renderAssets();}
+}
 
 // ─── Asset panel ──────────────────────────────────────────────────────────
 function renderAssets(){
   var el=g('assetList');el.innerHTML='';
-  // Comps section at top
-  if(S.comps.length>0){
+
+  // assetList 自体へのドロップ: フォルダ外（ルート）に出す
+  el.ondragover=function(e){
+    if(e.target.closest('.folder-hdr')||e.target.closest('.folder-contents'))return;
+    e.preventDefault();
+    el.style.outline='1px dashed #2a6a2a';
+  };
+  el.ondragleave=function(e){
+    if(!el.contains(e.relatedTarget))el.style.outline='';
+  };
+  el.ondrop=function(e){
+    el.style.outline='';
+    if(e.target.closest('.folder-hdr')||e.target.closest('.folder-contents'))return;
+    e.preventDefault();
+    var aid=parseInt(e.dataTransfer.getData('panel-aid'),10);
+    var cid=parseInt(e.dataTransfer.getData('comp-panel-id'),10);
+    var fid=parseInt(e.dataTransfer.getData('folder-panel-id'),10);
+    if(aid)assignToFolder(aid,null);
+    else if(cid)assignCompToFolder(cid,null);
+    else if(fid)assignFolderToFolder(fid,null);
+  };
+
+  // Comps and assets without folderId at top
+  var hasTopComps=S.comps.some(function(c){return !c.folderId;});
+  var hasTopAssets=S.assets.some(function(a){return !a.folderId;});
+
+  if(hasTopComps){
     var sec=document.createElement('div');sec.className='a-sec';sec.textContent='コンポ';el.appendChild(sec);
-    S.comps.forEach(function(comp){
-      var d=document.createElement('div');d.className='a-item';d.draggable=true;
-      d.ondragstart=function(e){e.dataTransfer.setData('compId',''+comp.id);};
-      var badge=document.createElement('span');badge.className='badge b-comp';badge.textContent='COMP';
-      var name=document.createElement('span');name.className='a-name';name.textContent=comp.name;name.title=comp.name;
-      name.onclick=function(){setActiveComp(comp.id);};
-      name.style.cursor='pointer';
-      var ed=document.createElement('span');ed.className='folder-del';ed.textContent='✏';ed.title='名前を変更';
-      ed.style.color='#556633';
-      ed.onclick=function(e){e.stopPropagation();renameComp(comp.id);};
-      var del=document.createElement('span');del.className='a-del';del.textContent='✕';del.title='コンポを削除';
-      del.onclick=function(e){e.stopPropagation();removeComp(comp.id);};
-      d.appendChild(badge);d.appendChild(name);d.appendChild(ed);
-      if(S.comps.length>1)d.appendChild(del);
-      d.onclick=function(e){if(!e.defaultPrevented)showCompInfo(comp.id);};
-      el.appendChild(d);
+    S.comps.filter(function(c){return !c.folderId;}).forEach(function(comp){
+      el.appendChild(makeCompEl(comp));
     });
   }
-  // Assets (ungrouped)
-  var hasAssets=S.assets.some(function(a){return !a.folderId;});
-  if(hasAssets){
+  if(hasTopAssets){
     var sec2=document.createElement('div');sec2.className='a-sec';sec2.textContent='素材';el.appendChild(sec2);
     S.assets.filter(function(a){return !a.folderId;}).forEach(function(a){el.appendChild(makeAssetEl(a));});
   }
-  // Folders: parentFolderIdを持つものは入れ子で表示、持たないものがルートレベル
+  // Folders: parentFolderIdを持つものは入れ子で表示
   function renderFolderEl(folder, depth) {
     var indent = depth * 10;
     var fhdr=document.createElement('div');fhdr.className='folder-hdr';
     fhdr.style.paddingLeft=(5+indent)+'px';
-    fhdr.ondragover=function(e){e.preventDefault();fhdr.classList.add('drop-hi');};
-    fhdr.ondragleave=function(){fhdr.classList.remove('drop-hi');};
-    fhdr.ondrop=function(e){e.preventDefault();fhdr.classList.remove('drop-hi');var aid=parseInt(e.dataTransfer.getData('panel-aid'),10);if(aid)assignToFolder(aid,folder.id);};
+    // フォルダ自体もドラッグ可能
+    fhdr.draggable=true;
+    fhdr.ondragstart=function(e){
+      e.dataTransfer.setData('folder-panel-id',''+folder.id);
+      e.dataTransfer.effectAllowed='move';
+      e.stopPropagation();
+    };
+    fhdr.ondragover=function(e){e.preventDefault();e.stopPropagation();fhdr.classList.add('drop-hi');};
+    fhdr.ondragleave=function(e){e.stopPropagation();fhdr.classList.remove('drop-hi');};
+    fhdr.ondrop=function(e){
+      e.preventDefault();e.stopPropagation();fhdr.classList.remove('drop-hi');
+      var aid=parseInt(e.dataTransfer.getData('panel-aid'),10);
+      var cid=parseInt(e.dataTransfer.getData('comp-panel-id'),10);
+      var dfid=parseInt(e.dataTransfer.getData('folder-panel-id'),10);
+      if(aid)assignToFolder(aid,folder.id);
+      else if(cid)assignCompToFolder(cid,folder.id);
+      else if(dfid&&dfid!==folder.id)assignFolderToFolder(dfid,folder.id);
+    };
     fhdr.innerHTML='<span class="folder-toggle">'+(folder.open?'▼':'▶')+'</span>'
       +'<span class="folder-name">'+folder.name+'</span>'
       +'<span class="folder-del" onclick="event.stopPropagation();renameFolder('+folder.id+')" title="名前変更" style="color:#556633">✏</span>'
@@ -632,19 +726,37 @@ function renderAssets(){
     el.appendChild(fhdr);
     if(folder.open){
       var fc=document.createElement('div');fc.className='folder-contents';
+      // フォルダ内コンテンツもドロップ受付（フォルダ外へ出す時の通過用はbubblingで対処）
+      fc.ondragover=function(e){e.stopPropagation();};// folder-hdrのdragoverに委譲しない
+      // このフォルダ内のコンポ
+      S.comps.filter(function(c){return c.folderId===folder.id;}).forEach(function(comp){fc.appendChild(makeCompEl(comp));});
       // このフォルダ直下の素材
       S.assets.filter(function(a){return a.folderId===folder.id;}).forEach(function(a){fc.appendChild(makeAssetEl(a));});
       el.appendChild(fc);
       // 子フォルダを再帰表示
-      S.folders.filter(function(f){return f.parentFolderId===folder.id;}).forEach(function(child){
-        renderFolderEl(child, depth+1);
-      });
+      S.folders.filter(function(f){return f.parentFolderId===folder.id;}).forEach(function(child){renderFolderEl(child, depth+1);});
     }
   }
-  // ルートフォルダ（parentFolderIdがないもの）だけを最上位に表示
-  S.folders.filter(function(f){return !f.parentFolderId;}).forEach(function(folder){
-    renderFolderEl(folder, 0);
-  });
+  S.folders.filter(function(f){return !f.parentFolderId;}).forEach(function(folder){renderFolderEl(folder, 0);});
+}
+
+function makeCompEl(comp){
+  var d=document.createElement('div');d.className='a-item';d.draggable=true;
+  d.ondragstart=function(e){
+    e.dataTransfer.setData('compId',''+comp.id);
+    e.dataTransfer.setData('comp-panel-id',''+comp.id);
+  };
+  var badge=document.createElement('span');badge.className='badge b-comp';badge.textContent='COMP';
+  var name=document.createElement('span');name.className='a-name';name.textContent=comp.name;name.title=comp.name;
+  name.onclick=function(){setActiveComp(comp.id);};name.style.cursor='pointer';
+  var ed=document.createElement('span');ed.className='folder-del';ed.textContent='✏';ed.title='名前を変更';
+  ed.style.color='#556633';ed.onclick=function(e){e.stopPropagation();renameComp(comp.id);};
+  var del=document.createElement('span');del.className='a-del';del.textContent='✕';del.title='コンポを削除';
+  del.onclick=function(e){e.stopPropagation();removeComp(comp.id);};
+  d.appendChild(badge);d.appendChild(name);d.appendChild(ed);
+  if(S.comps.length>1)d.appendChild(del);
+  d.onclick=function(e){if(!e.defaultPrevented)showCompInfo(comp.id);};
+  return d;
 }
 
 function makeAssetEl(a){
@@ -709,6 +821,11 @@ function showAssetInfo(aid){
     if(a.frames&&a.frames.length){html+=infoRow('サイズ',a.frames[0].width+'×'+a.frames[0].height);}
   } else if(a.type==='img'){
     if(a.frames&&a.frames.length){html+=infoRow('サイズ',a.frames[0].width+'×'+a.frames[0].height);}
+    // ペン素材の場合はPNG書き出しボタンを表示
+    if(a._penCanvas||a._savedPng){
+      html+='<div class="ps">ペン素材</div>';
+      html+='<button class="btn sm grn" onclick="exportPenAsPng('+aid+')" style="width:100%;margin-top:2px">PNG書き出し</button>';
+    }
   } else if(a.type==='vid'){
     if(a.videoEl){html+=infoRow('サイズ',a.videoEl.videoWidth+'×'+a.videoEl.videoHeight);}
     html+=infoRow('尺',fmtTime(a.duration||0));
@@ -723,11 +840,34 @@ function showAssetInfo(aid){
   pi.innerHTML=html;
 }
 
+async function exportPenAsPng(aid){
+  var a=findAsset(aid);if(!a)return;
+  var pngData=a._savedPng||(a._penCanvas?a._penCanvas.toDataURL('image/png'):null);
+  if(!pngData){alert('PNG データがありません');return;}
+  var fname=(a.displayName||a.name).replace(/[\/\\]/g,'_');
+  if(!/\.png$/i.test(fname))fname+='.png';
+  if(window.showSaveFilePicker){
+    try{
+      var fh=await window.showSaveFilePicker({
+        startIn:'desktop',suggestedName:fname,
+        types:[{description:'PNG Image',accept:{'image/png':['.png']}}]
+      });
+      var arr=pngData.split(',');var bin=atob(arr[1]);
+      var u8=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+      var w=await fh.createWritable();await w.write(u8.buffer);await w.close();
+      alert('PNG書き出し完了！');
+    }catch(e){if(e.name==='AbortError')return;alert('書き出し失敗: '+e.message);}
+  } else {
+    var a2=document.createElement('a');a2.href=pngData;a2.download=fname;a2.click();
+  }
+}
+
 function showCompInfo(cid){
   S.selId=null;
   var comp=S.comps.find(function(c){return c.id===cid;});if(!comp)return;
   var pi=g('propsInner');
   var cw=comp.width||CW, ch=comp.height||CH;
+  var isActive=S.activeCompId===cid;
   var html='<div class="ps">コンポ情報</div>';
   html+=infoRow('名前',comp.name);
   html+=infoRow('サイズ',cw+'×'+ch);
@@ -737,6 +877,15 @@ function showCompInfo(cid){
   html+=infoRow('音声トラック',comp.aTracks.length+'');
   html+=infoRow('映像クリップ',comp.clips.length+'');
   html+=infoRow('音声クリップ',comp.aClips.length+'');
+  // 書き出しボタン
+  html+='<div class="ps">書き出し</div>';
+  if(!isActive){
+    html+='<p style="font-size:10px;color:#555;margin-bottom:5px">※アクティブなコンポが書き出し対象です</p>';
+    html+='<button class="btn sm" style="width:100%;margin-bottom:6px" onclick="setActiveComp('+cid+');showCompInfo('+cid+')">このコンポをアクティブに</button>';
+  }
+  var expStyle='width:100%;margin-bottom:4px'+(isActive?'':';opacity:.45;cursor:not-allowed');
+  html+='<button class="btn sm grn" style="'+expStyle+'"'+(isActive?'':' disabled')+' onclick="showExpModal()">▤ MP4書き出し</button>';
+  html+='<button class="btn sm grn" style="'+expStyle.replace('margin-bottom:4px','margin-bottom:6px')+'"'+(isActive?'':' disabled')+' onclick="showSeqExpModal()">▤ 連番書き出し</button>';
   html+='<div class="ps">サイズ変更</div>'
     +'<div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">'
     +'<input type="number" id="pCW" value="'+cw+'" min="1" max="7680" style="width:60px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:3px 5px;font-size:12px;">'
@@ -744,7 +893,7 @@ function showCompInfo(cid){
     +'<input type="number" id="pCH" value="'+ch+'" min="1" max="4320" style="width:60px;background:#111;border:1px solid #2e2e2e;color:#ddd;border-radius:4px;padding:3px 5px;font-size:12px;">'
     +'<button class="btn sm" onclick="applyCompSize('+cid+')">適用</button>'
     +'</div>';
-  html+='<button class="btn sm" style="margin-top:4px" onclick="setActiveComp('+cid+')">このコンポを開く</button>';
+  html+='<button class="btn sm" style="margin-top:4px;width:100%" onclick="setActiveComp('+cid+')">このコンポを開く</button>';
   pi.innerHTML=html;
 }
 function applyCompSize(cid){
@@ -811,8 +960,8 @@ function hexToSolidName(hex){
 function mkComp(name,w,h){
   return {id:nid(),name:name||'Comp'+(S.comps.length+1),dur:10,
     width:w||CW,height:h||CH,
-    vLayers:[{id:nid(),name:'V2'},{id:nid(),name:'V1'}],
-    aTracks:[{id:nid(),name:'A1'}],
+    vLayers:[{id:nid(),name:'V3',visible:true},{id:nid(),name:'V2',visible:true},{id:nid(),name:'V1',visible:true}],
+    aTracks:[{id:nid(),name:'A1',visible:true}],
     clips:[],aClips:[]};
 }
 function addComp(){
@@ -945,12 +1094,14 @@ function buildProjectJSON(){
       return {id:a.id,type:a.type,name:a.name,originalName:a.originalName||a.name,
         displayName:a.displayName||a.name,duration:a.duration||0,
         seqFps:a.seqFps||null,frameCount:a.frameCount||0,folderId:a.folderId||null,
-        color:a.color||null};  // solid用
+        color:a.color||null,  // solid用
+        penPng:a._savedPng||null};  // ペン素材PNG
     }),
     _nid:S._nid
   };
 }
 async function saveProject(){
+  savePenAssets(); // ペン素材をPNG DataURLに確定
   var json=JSON.stringify(buildProjectJSON(),null,2);
   if(canFSA&&window.showSaveFilePicker){
     try{var handle=await window.showSaveFilePicker({startIn:'desktop',suggestedName:'project1.json',types:[{description:'AEmini Project File',accept:{'application/json':['.json']}}]});var w=await handle.createWritable();await w.write(json);await w.close();return;}
@@ -1016,6 +1167,27 @@ async function doLoadProject(proj){
         displayName:disp,duration:9999,color:a.color,
         solidW:0,solidH:0,frames:[],seqFps:S.fps,frameCount:1,
         folderId:a.folderId||null};
+    }
+    // ペン素材（penPng付き）は保存されたPNGから復元
+    if(a.type==='img'&&a.penPng){
+      var penAsset={id:a.id,type:'img',name:name,originalName:orig,
+        displayName:disp,duration:9999,seqFps:S.fps,frameCount:1,
+        folderId:a.folderId||null,_savedPng:a.penPng,frames:[],stub:false};
+      // DataURLから ImageBitmap を復元
+      (function(pa){
+        var img=new Image();
+        img.onload=function(){
+          createImageBitmap(img).then(function(bmp){
+            pa.frames=[bmp];
+            // ペンキャンバスも再生成
+            var oc=document.createElement('canvas');oc.width=img.width;oc.height=img.height;
+            var octx=oc.getContext('2d');octx.drawImage(img,0,0);
+            pa._penCanvas=oc;
+          });
+        };
+        img.src=pa._savedPng;
+      })(penAsset);
+      return penAsset;
     }
     return {id:a.id,type:a.type,name:name,originalName:orig,
       displayName:disp,duration:a.duration,seqFps:a.seqFps,
@@ -1103,10 +1275,12 @@ function getSnapPoints(excludeId){
 function snapNearest(t,pts){var thresh=12/S.pxPerSec,best=t,bestD=Infinity;pts.forEach(function(p){var d=Math.abs(p-t);if(d<bestD&&d<thresh){bestD=d;best=p;}});return best;}
 
 // ─── Timeline build ───────────────────────────────────────────────────────
-var _drag=null,_res=null,_rulerDown=false,_tfDrag=null;
+var _drag=null,_res=null,_rulerDown=false,_tfDrag=null,_layerDrag=null;
 
 function rebuildTl(){
   var comp=AC();if(!comp)return;
+  // ズームスライダーの値をS.pxPerSecと同期
+  var zr=g('zoomRange');if(zr&&+zr.value!==S.pxPerSec)zr.value=S.pxPerSec;
   // クリップの最大終端を計算してタイムライン幅を決定
   var maxEnd=comp.dur;
   comp.clips.forEach(function(c){var e=c.tStart+c.dur;if(e>maxEnd)maxEnd=e;});
@@ -1121,12 +1295,71 @@ function rebuildTl(){
   Array.from(inner.querySelectorAll('.tl-row')).forEach(function(e){e.remove();});
   var lblRows=g('tlLblRows');lblRows.innerHTML='';
 
-  allTracks.forEach(function(track){
+  allTracks.forEach(function(track,tIdx){
     var isVisible=track.visible!==false;
     var lbl=document.createElement('div');lbl.className='lbl-row';
-    lbl.innerHTML='<span class="lbl-eye '+(isVisible?'on':'off')+'" title="'+(isVisible?'クリックで非表示':'クリックで表示')+'" onclick="toggleLayerVisible('+track.id+',\''+track.kind+'\')">'+(isVisible?'●':'⊘')+'</span>'
-      +'<span title="'+track.name+'" style="'+(isVisible?'':'opacity:.4')+'">'+track.name+'</span>'
-      +'<span class="lbl-del" onclick="'+(track.kind==='v'?'removeVLayer':'removeATrack')+'('+track.id+')">✕</span>';
+    lbl.draggable=true;
+    lbl.dataset.tidx=''+tIdx;lbl.dataset.tkind=track.kind;
+
+    // ドラッグ並び替え
+    lbl.ondragstart=function(e){
+      _layerDrag={idx:tIdx,kind:track.kind};
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('layer-drag','1');
+      lbl.style.opacity='0.5';
+      e.stopPropagation();
+    };
+    lbl.ondragend=function(){lbl.style.opacity='1';_layerDrag=null;};
+    lbl.ondragover=function(e){
+      if(!_layerDrag||_layerDrag.kind!==track.kind)return;
+      e.preventDefault();e.stopPropagation();
+      lbl.style.borderTop='2px solid #2e6ea6';
+    };
+    lbl.ondragleave=function(){lbl.style.borderTop='';};
+    lbl.ondrop=function(e){
+      lbl.style.borderTop='';
+      if(!_layerDrag||_layerDrag.kind!==track.kind||_layerDrag.idx===tIdx)return;
+      e.preventDefault();e.stopPropagation();
+      var arr=track.kind==='v'?comp.vLayers:comp.aTracks;
+      var fromIdx=_layerDrag.idx-(track.kind==='v'?0:comp.vLayers.length);
+      var toIdx=tIdx-(track.kind==='v'?0:comp.vLayers.length);
+      if(fromIdx<0||toIdx<0||fromIdx>=arr.length||toIdx>=arr.length)return;
+      var moved=arr.splice(fromIdx,1)[0];
+      arr.splice(toIdx,0,moved);
+      _layerDrag=null;
+      rebuildTl();pushHistory();
+    };
+
+    // 目のアイコン
+    var eyeSpan='<span class="lbl-eye '+(isVisible?'on':'off')+'" title="'+(isVisible?'クリックで非表示':'クリックで表示')+'" onclick="toggleLayerVisible('+track.id+',\''+track.kind+'\')">'+(isVisible?'●':'⊘')+'</span>';
+
+    // レイヤー名（鉛筆アイコンでリネーム）
+    var nameSpan=document.createElement('span');
+    nameSpan.title=track.name;
+    nameSpan.style.cssText=(isVisible?'':'opacity:.4')+';flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#666;';
+    nameSpan.textContent=track.name;
+
+    var editSpan=document.createElement('span');
+    editSpan.className='folder-del';editSpan.textContent='✏';editSpan.title='名前を変更';
+    editSpan.style.color='#556633';
+    editSpan.onclick=(function(tid,tkind,tname){
+      return function(e){
+        e.stopPropagation();
+        var newName=prompt('レイヤー名を変更してください',tname);
+        if(!newName||!newName.trim())return;
+        var c2=AC();if(!c2)return;
+        var arr2=tkind==='v'?c2.vLayers:c2.aTracks;
+        var layer=arr2.find(function(l){return l.id===tid;});
+        if(layer){layer.name=newName.trim();rebuildTl();pushHistory();}
+      };
+    })(track.id,track.kind,track.name);
+
+    lbl.innerHTML=eyeSpan;
+    lbl.appendChild(nameSpan);
+    lbl.appendChild(editSpan);
+    var delSpan=document.createElement('span');delSpan.className='lbl-del';delSpan.textContent='✕';
+    delSpan.onclick=function(){(track.kind==='v'?removeVLayer:removeATrack)(track.id);};
+    lbl.appendChild(delSpan);
     lblRows.appendChild(lbl);
 
     var row=document.createElement('div');row.className='tl-row';
@@ -1162,7 +1395,7 @@ function rebuildTl(){
       var asset=clip.compId?null:findAsset(clip.assetId);
       var x=timeToX(clip.tStart),cw=Math.max(timeToX(clip.dur),6);
       var isStub=asset&&asset.stub;
-      var baseCol=clip.compId?'#1a1040':isStub?'#2a2a10':track.kind==='a'?'#3a1060':CLIP_COLORS[clip.id%CLIP_COLORS.length];
+      var baseCol=clip.clipColor||(clip.compId?'#1a1040':isStub?'#2a2a10':track.kind==='a'?'#3a1060':CLIP_COLORS[clip.id%CLIP_COLORS.length]);
       var brdCol=clip.compId?'#8060d0':isStub?'#504a20':track.kind==='a'?'#7040b0':baseCol;
       var txtCol=clip.compId?'#c0a0ff':isStub?'#c0b050':track.kind==='a'?'#c090f8':'#9ac8ff';
       var hasRemap=(clip.speed||1)!==1;
@@ -1245,7 +1478,9 @@ document.addEventListener('mousemove',function(e){
   if(_res){
     var clip=findClip(_res.cid);if(!clip)return;
     var a=clip.compId?null:findAsset(clip.assetId);
-    var srcMax=clip.compId?9999:maxSrc(a);
+    // img/solid は srcMax なし（自由に伸ばせる）
+    var isStillSrc=a&&(a.type==='img'||a.type==='solid');
+    var srcMax=clip.compId?9999:(isStillSrc?9999:maxSrc(a));
     var delta=(e.clientX-_res.startX)/S.pxPerSec;
     var srcLength=_res.origDur*_res.origSpeed;
     if(_res.isRemap){
@@ -1253,7 +1488,8 @@ document.addEventListener('mousemove',function(e){
       else{var origTEnd=_res.origTStart+_res.origDur;var nts=snapToFrame(Math.max(0,_res.origTStart+delta));var nd2=snapToFrame(Math.max(1/S.fps,origTEnd-nts));clip.tStart=nts;clip.dur=nd2;clip.speed=srcLength/nd2;clip.trimIn=_res.origTrimIn;}
     } else {
       if(_res.side==='r'){
-        var nd3=snapToFrame(Math.max(1/S.fps,_res.origDur+delta));nd3=Math.min(nd3,srcMax-clip.trimIn);
+        var nd3=snapToFrame(Math.max(1/S.fps,_res.origDur+delta));
+        if(!isStillSrc)nd3=Math.min(nd3,srcMax-clip.trimIn);
         if(e.shiftKey){var tEnd=clip.tStart+nd3;var sn=snapToFrame(snapNearest(tEnd,getSnapPoints(_res.cid)));nd3=Math.max(1/S.fps,sn-clip.tStart);}
         clip.dur=nd3;
       } else {
@@ -1286,6 +1522,9 @@ document.addEventListener('keydown',function(e){
   var comp=AC();
   if(e.code==='ArrowLeft'&&comp){S.time=snapToFrame(Math.max(0,S.time-1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
   if(e.code==='ArrowRight'&&comp){S.time=snapToFrame(Math.min(comp.dur,S.time+1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
+  // < > で1f移動
+  if((e.key==='<'||e.key===',')&&!e.ctrlKey&&!e.metaKey&&comp){e.preventDefault();S.time=snapToFrame(Math.max(0,S.time-1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
+  if((e.key==='>'||e.key==='.')&&!e.ctrlKey&&!e.metaKey&&comp){e.preventDefault();S.time=snapToFrame(Math.min(comp.dur,S.time+1/S.fps));syncMedia();updatePlayhead();updateTimeDisp();}
   if((e.code==='Delete'||e.code==='Backspace')&&S.selId)deleteSelClip();
   if(e.code==='KeyD'&&e.shiftKey&&(e.ctrlKey||e.metaKey)){e.preventDefault();splitAtPlayhead();}
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.code==='KeyZ'){e.preventDefault();undo();}
@@ -1309,6 +1548,10 @@ function splitAtPlayhead(){
 
 // ─── Canvas transform ─────────────────────────────────────────────────────
 C.addEventListener('mousedown',function(e){
+  if(_penMode){
+    if(startPenStroke(e)){penDraw(e);}  // クリック点をすぐ描画
+    e.preventDefault();e.stopPropagation();return;
+  }
   if(e.button!==0||!S.selId)return;
   var clip=findClip(S.selId);if(!clip||isAClip(S.selId))return;
   var lt=S.time-clip.tStart;if(lt<0||lt>=clip.dur)return;
@@ -1322,6 +1565,8 @@ C.addEventListener('mousedown',function(e){
   if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh){_tfDrag={type:'move',startX:e.clientX,startY:e.clientY,origX:clip.x||0,origY:clip.y||0,clipId:S.selId};e.preventDefault();e.stopPropagation();}
 });
 C.addEventListener('mousemove',function(e){
+  if(_penMode&&_penDrawing){penDraw(e);return;}
+  if(_penMode){C.style.cursor='crosshair';return;}
   if(!S.selId){C.style.cursor='default';return;}
   var clip=findClip(S.selId);if(!clip||isAClip(S.selId)){C.style.cursor='default';return;}
   var lt=S.time-clip.tStart;if(lt<0||lt>=clip.dur){C.style.cursor='default';return;}
@@ -1333,6 +1578,8 @@ C.addEventListener('mousemove',function(e){
   else if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh)C.style.cursor='move';
   else C.style.cursor='default';
 });
+C.addEventListener('mouseup',function(e){if(_penMode)stopPenStroke();});
+C.addEventListener('contextmenu',function(e){if(_penMode){e.preventDefault();}});
 function doTfDrag(e){
   if(!_tfDrag)return;var clip=findClip(_tfDrag.clipId);if(!clip)return;
   var r=C.getBoundingClientRect();var sx=CW/r.width,sy=CH/r.height;
@@ -1539,7 +1786,7 @@ function renderProps(){
   if(isA){
     pi.innerHTML='<div class="ps">配置</div>'
       +mkTimeRow('開始','pTS',0,compDur,clip.tStart,"setProp('tStart',+this.value);g('pTS').textContent=fmtTime(+this.value);rebuildTl();")
-      +mkTimeRow('長さ','pD',fs,Math.max(aDur,30),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
+      +mkTimeRow('長さ','pD',fs,Math.min(Math.max(aDur,1),60),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
       +'<div class="ps">音量</div>'
       +mkRow('音量','pV',0,1,0.01,clip.vol||1,"setProp('vol',+this.value);g('pV').textContent=(+this.value).toFixed(2);")
       +'<button class="btn sm red" style="margin-top:10px" onclick="deleteSelClip()">クリップ削除</button>';
@@ -1568,7 +1815,7 @@ function renderProps(){
 
   pi.innerHTML=compRefNote+'<div class="ps">配置</div>'
     +mkTimeRow('開始','pTS',0,compDur,clip.tStart,"setProp('tStart',+this.value);g('pTS').textContent=fmtTime(+this.value);rebuildTl();")
-    +mkTimeRow('長さ','pD',fs,Math.max(aDur,30),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
+    +mkTimeRow('長さ','pD',fs,Math.min(Math.max(aDur,1),60),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
     +(clip.compId?'':mkTimeRow('素材オフセット','pTI',0,Math.max(0,aDur-fs),clip.trimIn||0,"setProp('trimIn',+this.value);g('pTI').textContent=fmtTime(+this.value);rebuildTl();"))
     +solidSection
     +'<div class="ps">透明度 / 合成</div>'
@@ -1588,9 +1835,22 @@ function renderProps(){
     +'<div class="pr"><div class="pl">スケール <span id="pSc">'+((clip.scale||1).toFixed(2))+'</span></div></div>'
     +(function(){var nd=clipNatDims(clip);var sc=clip.scale||1;return '<div class="pr"><div class="pl" style="color:#555">実サイズ <span style="color:#888;font-family:monospace;font-size:10px">'+Math.round(nd.w*sc)+'×'+Math.round(nd.h*sc)+'px</span></div></div>';})()
     +'<button class="btn sm" style="margin-bottom:4px" onclick="resetTransform()">トランスフォームをリセット</button>'
+    +'<div class="ps">クリップカラー</div>'
+    +'<div class="pr" style="display:flex;align-items:center;gap:8px;">'
+    +'<input type="color" id="pClipColor" value="'+(clip.clipColor||(CLIP_COLORS[clip.id%CLIP_COLORS.length]||'#1b3a68'))+'" oninput="setClipColor(this.value)" onchange="pushHistory()" style="width:44px;height:28px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;padding:1px;" title="クリップの表示カラー">'
+    +'<button class="btn sm" onclick="setClipColor(null)" title="デフォルトに戻す" style="font-size:10px">リセット</button>'
+    +'</div>'
     +'<button class="btn sm red" style="margin-top:6px" onclick="deleteSelClip()">クリップ削除</button>';
 }
 function resetTransform(){var clip=findClip(S.selId);if(!clip)return;pushHistory();clip.x=0;clip.y=0;clip.scale=1;renderProps();}
+function setClipColor(color){
+  var clip=findClip(S.selId);if(!clip)return;
+  if(color===null){delete clip.clipColor;}else{clip.clipColor=color;}
+  rebuildTl();
+  // カラーピッカーUIの値も更新（リセット時に色を戻す）
+  var picker=g('pClipColor');
+  if(picker){picker.value=clip.clipColor||(CLIP_COLORS[clip.id%CLIP_COLORS.length]||'#1b3a68');}
+}
 function changeSolidColor(assetId,color){
   var a=findAsset(+assetId);if(!a||a.type!=='solid')return;
   a.color=color;
@@ -1708,6 +1968,288 @@ async function mixAudio(comp){
   await Promise.all(ps);return await offCtx.startRendering();
 }
 function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('Script load failed: '+src));};document.head.appendChild(s);});}
+
+// ─── Pen drawing mode ─────────────────────────────────────────────────────
+var _penMode=false,_penDrawing=false,_penCanvas=null,_penCtx=null,_penLayerId=null,_penAssetId=null;
+var _penPts=[]; // stroke points for Catmull-Rom
+
+function getPenSize(){return parseInt(g('penSize').value)||4;}
+function getPenColor(){return g('penColor').value;}
+
+function togglePenMode(){
+  _penMode=!_penMode;
+  g('btnPen').classList.toggle('act',_penMode);
+  // サイズスライダーは常時表示のため非表示制御不要
+  C.style.cursor=_penMode?'crosshair':'default';
+  // ペンモードON時はプレビュー背景を暗赤色に
+  g('pvWrap').style.background=_penMode?'#2a0404':'';
+}
+
+function ensurePenLayer(){
+  var comp=AC();if(!comp)return null;
+  if(_penLayerId){
+    var lay=comp.vLayers.find(function(l){return l.id===_penLayerId;});
+    if(lay)return lay;
+  }
+  var lid=nid();
+  comp.vLayers.unshift({id:lid,name:'ペン',visible:true});
+  _penLayerId=lid;
+  return comp.vLayers[0];
+}
+
+// ペン素材を PNG DataURL として保存（プロジェクト保存前に呼ぶ）
+function savePenAssets(){
+  S.assets.forEach(function(a){
+    if(a._penCanvas&&!a._savedPng){
+      a._savedPng=a._penCanvas.toDataURL('image/png');
+    }
+  });
+}
+
+function startPenStroke(e){
+  if(!_penMode)return false;
+  var comp=AC();if(!comp)return false;
+  var lay=ensurePenLayer();if(!lay)return false;
+
+  var curF=Math.round(S.time*S.fps);
+  var existingClip=comp.clips.find(function(c){
+    return c.layerId===_penLayerId&&Math.round(c.tStart*S.fps)===curF;
+  });
+  if(existingClip){
+    var ea=findAsset(existingClip.assetId);
+    if(ea&&ea._penCanvas){
+      _penCanvas=ea._penCanvas;_penCtx=_penCanvas.getContext('2d');
+      _penAssetId=existingClip.assetId;
+      ea.frames=[_penCanvas]; // ← liveキャンバスに戻す（描画がリアルタイムで見えるように）
+      _penPts=[];_penDrawing=true;return true;
+    }
+  }
+  _penCanvas=document.createElement('canvas');
+  _penCanvas.width=CW;_penCanvas.height=CH;
+  _penCtx=_penCanvas.getContext('2d');
+  _penCtx.clearRect(0,0,CW,CH);
+  var aid=nid();_penAssetId=aid;
+  var asset={id:aid,type:'img',name:'ペン '+curF+'f',displayName:'ペン '+curF+'f',
+    frames:[_penCanvas],seqFps:S.fps,duration:9999,frameCount:1,_penCanvas:_penCanvas};
+  S.assets.push(asset);
+  var clip=mkVClip(aid,_penLayerId,S.time);
+  clip.dur=1/S.fps;
+  comp.clips.push(clip);
+  renderAssets();rebuildTl();
+  _penPts=[];_penDrawing=true;
+  return true;
+}
+
+// Catmull-Rom スプライン描画
+function drawCatmullRom(pts,color,size,isErase){
+  if(pts.length<2)return;
+  _penCtx.save();
+  _penCtx.globalCompositeOperation=isErase?'destination-out':'source-over';
+  _penCtx.strokeStyle=isErase?'rgba(0,0,0,1)':color;
+  _penCtx.lineWidth=size*2;
+  _penCtx.lineCap='round';_penCtx.lineJoin='round';
+  _penCtx.beginPath();
+  _penCtx.moveTo(pts[0].x,pts[0].y);
+  for(var i=0;i<pts.length-1;i++){
+    var p0=pts[Math.max(0,i-1)];
+    var p1=pts[i];
+    var p2=pts[i+1];
+    var p3=pts[Math.min(pts.length-1,i+2)];
+    var cp1x=p1.x+(p2.x-p0.x)/6;
+    var cp1y=p1.y+(p2.y-p0.y)/6;
+    var cp2x=p2.x-(p3.x-p1.x)/6;
+    var cp2y=p2.y-(p3.y-p1.y)/6;
+    _penCtx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,p2.x,p2.y);
+  }
+  _penCtx.stroke();
+  _penCtx.restore();
+}
+
+function penDraw(e){
+  if(!_penDrawing||!_penCtx||!_penCanvas)return;
+  var r=C.getBoundingClientRect();
+  var x=(e.clientX-r.left)*CW/r.width;
+  var y=(e.clientY-r.top)*CH/r.height;
+  var isErase=e.buttons===2;
+  var size=isErase?getPenSize()*3:getPenSize();
+  _penPts.push({x:x,y:y});
+  // 毎ストローク全体を再描画（ただし既存ストローク上に重ねる）
+  // 直前の2点を使ったCatmull-Rom（累積）
+  if(_penPts.length>=2){
+    var last=_penPts.slice(-4);
+    drawCatmullRom(last,getPenColor(),size,isErase);
+  }
+}
+
+function stopPenStroke(){
+  if(_penDrawing){
+    _penPts=[];_penDrawing=false;
+    // ストローク終了時にフレームをImageBitmapで確定
+    if(_penCanvas){
+      var aid=_penAssetId;
+      createImageBitmap(_penCanvas).then(function(bmp){
+        var a=findAsset(aid);
+        if(a){a.frames=[bmp];a._latestBmp=bmp;}
+      });
+    }
+    pushHistory();
+  }
+}
+
+// ─── Sequential export ────────────────────────────────────────────────────
+function showSeqExpModal(){
+  var comp=AC();if(!comp)return;
+  g('seqCompLbl').textContent=comp.name;
+  g('seqFrameLbl').textContent=Math.round(comp.dur*S.fps)+'f';
+  g('seqExpModal').style.display='flex';
+}
+
+async function startSeqExport(){
+  g('seqExpModal').style.display='none';
+  var comp=AC();if(!comp)return;
+  var fmt=g('seqFmt').value;
+  var totalF=Math.round(comp.dur*S.fps);
+
+  // フォルダ選択（FSA対応時）、非対応時はZIPフォールバック
+  var outDir=null;
+  if(window.showDirectoryPicker){
+    try{outDir=await window.showDirectoryPicker({mode:'readwrite'});}
+    catch(e){if(e.name==='AbortError')return;outDir=null;}
+  }
+
+  var wasPlaying=S.playing;if(wasPlaying)pause();
+  var savedTime=S.time;
+  isExporting=true;
+  var digits=String(totalF-1).length;
+  var mimeType=fmt==='jpg'?'image/jpeg':'image/png';
+  var quality=fmt==='jpg'?0.92:undefined;
+  var ext=fmt;
+
+  if(outDir){
+    // FSA: フォルダに直接書き込み
+    showLoad('連番書き出し中...','',0);await tick();
+    for(var f=0;f<totalF;f++){
+      S.time=f/S.fps;await seekAllVideos(comp,S.time);renderFrame();
+      var numStr=String(f);while(numStr.length<digits)numStr='0'+numStr;
+      var fname='frame'+numStr+'.'+ext;
+      try{
+        var dataURL=quality!==undefined?C.toDataURL(mimeType,quality):C.toDataURL(mimeType);
+        var arr=dataURL.split(',');
+        var bin=atob(arr[1]);
+        var u8=new Uint8Array(bin.length);
+        for(var i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+        var fh=await outDir.getFileHandle(fname,{create:true});
+        var w=await fh.createWritable();
+        await w.write(u8.buffer);await w.close();
+      }catch(e){console.warn('frame write failed',e);}
+      if(f%8===0){setLoad((f+1)/totalF,'連番書き出し中...',(f+1)+'/'+totalF);await tick();}
+    }
+    isExporting=false;S.time=savedTime;syncMedia();updatePlayhead();updateTimeDisp();hideLoad();
+    alert('連番書き出し完了！\n'+totalF+'枚 / '+fmt.toUpperCase()+'\nフォルダ: '+outDir.name);
+  } else {
+    // フォールバック: 1枚ずつダウンロード（少数向け）
+    showLoad('連番書き出し中...','',0);await tick();
+    for(var f=0;f<totalF;f++){
+      S.time=f/S.fps;await seekAllVideos(comp,S.time);renderFrame();
+      var numStr2=String(f);while(numStr2.length<digits)numStr2='0'+numStr2;
+      var dataURL2=quality!==undefined?C.toDataURL(mimeType,quality):C.toDataURL(mimeType);
+      var a2=document.createElement('a');a2.href=dataURL2;a2.download='frame'+numStr2+'.'+ext;a2.click();
+      if(f%8===0){setLoad((f+1)/totalF,'連番書き出し中...',(f+1)+'/'+totalF);await tick();}
+      await new Promise(function(r){setTimeout(r,50);});
+    }
+    isExporting=false;S.time=savedTime;syncMedia();updatePlayhead();updateTimeDisp();hideLoad();
+    alert('連番書き出し完了！\n'+totalF+'枚ダウンロードしました。');
+  }
+}
+
+// ─── Collect & Save ───────────────────────────────────────────────────────
+async function collectAndSave(){
+  if(!canFSA||!window.showSaveFilePicker){
+    alert('収集保存はChromeで直接開いた場合のみ使用できます。');
+    return;
+  }
+  // まずペン素材をPNG化
+  savePenAssets();
+  // プロジェクトJSONを保存先を選択
+  var jsonHandle=null;
+  try{
+    jsonHandle=await window.showSaveFilePicker({
+      startIn:'desktop',suggestedName:'project1.json',
+      types:[{description:'AEmini Project File',accept:{'application/json':['.json']}}]
+    });
+  }catch(e){if(e.name==='AbortError')return;return;}
+
+  // JSONファイルのある親ディレクトリを取得
+  // showSaveFilePickerではディレクトリハンドルが取れないので、
+  // 代わりに showDirectoryPicker でルートを選んでもらう
+  var rootDir=null;
+  try{
+    // ※ alert()はユーザージェスチャーチェーンを切ることがあるため削除
+    //    フォルダ選択ダイアログのタイトルで案内
+    rootDir=await window.showDirectoryPicker({mode:'readwrite',startIn:'desktop'});
+  }catch(e){return;}
+
+  showLoad('素材を収集中...','',0);await tick();
+
+  // assetsフォルダ構造を再現
+  // まずフォルダIDマップを作成
+  var dirMap={};// folderId → DirectoryHandle
+  async function getOrCreateDir(folderId){
+    if(!folderId)return rootDir;
+    if(dirMap[folderId])return dirMap[folderId];
+    var folder=S.folders.find(function(f){return f.id===folderId;});
+    if(!folder)return rootDir;
+    var parentDir=await getOrCreateDir(folder.parentFolderId||null);
+    var d=await parentDir.getDirectoryHandle(folder.name,{create:true});
+    dirMap[folderId]=d;
+    return d;
+  }
+
+  var ok=0,ng=0;
+  for(var i=0;i<S.assets.length;i++){
+    var a=S.assets[i];
+    setLoad((i+1)/S.assets.length,'素材を収集中...',a.displayName||a.name);await tick();
+
+    // ペン素材（PNG DataURL）
+    if(a._penCanvas||a._savedPng){
+      try{
+        var pngData=a._savedPng||(a._penCanvas?a._penCanvas.toDataURL('image/png'):null);
+        if(!pngData)continue;
+        var targetDir=await getOrCreateDir(a.folderId||null);
+        var fname=(a.displayName||a.name).replace(/[\/\\]/g,'_')+'.png';
+        var arr=pngData.split(',');var bin=atob(arr[1]);
+        var u8=new Uint8Array(bin.length);for(var j=0;j<bin.length;j++)u8[j]=bin.charCodeAt(j);
+        var fh=await targetDir.getFileHandle(fname,{create:true});
+        var w=await fh.createWritable();await w.write(u8.buffer);await w.close();
+        ok++;
+      }catch(e){ng++;console.warn('collect pen failed',a.name,e);}
+      continue;
+    }
+
+    // 通常ファイル素材: IDBからFileHandleを取得してコピー
+    try{
+      var count=await dbGet(S.projId+':'+a.id+':n');
+      if(!count)continue;
+      var h0=await dbGet(S.projId+':'+a.id+':0');
+      if(!h0)continue;
+      var file=await h0.getFile();
+      var targetDir2=await getOrCreateDir(a.folderId||null);
+      var fh2=await targetDir2.getFileHandle(file.name,{create:true});
+      var w2=await fh2.createWritable();
+      await w2.write(await file.arrayBuffer());await w2.close();
+      ok++;
+    }catch(e){ng++;console.warn('collect failed',a.name,e);}
+  }
+
+  // JSONを保存
+  var json=JSON.stringify(buildProjectJSON(),null,2);
+  try{
+    var w3=await jsonHandle.createWritable();await w3.write(json);await w3.close();
+  }catch(e){alert('JSONの保存に失敗しました: '+e.message);}
+
+  hideLoad();
+  alert('収集保存完了！\nOK: '+ok+'件 / 失敗: '+ng+'件');
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 var _initComp=mkComp('Comp1',CW,CH);
