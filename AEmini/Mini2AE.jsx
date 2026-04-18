@@ -78,6 +78,164 @@
     try { return decodeURIComponent(f.fsName); } catch(e) { return f.fsName; }
   }
 
+  // ─── ユーティリティ ───────────────────────────────────────────────────────
+  function hexToRGB3(hex) {
+    hex = (hex || '#ffffff').replace('#','');
+    return [parseInt(hex.slice(0,2),16)/255, parseInt(hex.slice(2,4),16)/255, parseInt(hex.slice(4,6),16)/255];
+  }
+  function rgb3ToHex(c) {
+    function h(v){var s=Math.round(v*255).toString(16);return s.length<2?'0'+s:s;}
+    return '#'+h(c[0])+h(c[1])+h(c[2]);
+  }
+  function mapCSSFontToAE(cssFont) {
+    cssFont = cssFont || 'sans-serif';
+    if (cssFont.indexOf('Hiragino Kaku') >= 0)  return 'HiraKakuProN-W3';
+    if (cssFont.indexOf('Meiryo') >= 0)          return 'Meiryo';
+    if (cssFont.indexOf('Hiragino Mincho') >= 0) return 'HiraMinProN-W3';
+    if (cssFont.indexOf('MS Mincho') >= 0)       return 'MS-Mincho';
+    if (cssFont === 'serif')     return 'TimesNewRomanPSMT';
+    if (cssFont === 'monospace') return 'CourierNewPSMT';
+    return 'ArialMT';
+  }
+  function mapAEFontToCSS(aeFont) {
+    aeFont = aeFont || '';
+    if (/HiraKaku|Hiragino.*Kaku/i.test(aeFont))   return "'Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+    if (/Meiryo/i.test(aeFont))                    return "'Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+    if (/HiraMin|Hiragino.*Mincho/i.test(aeFont))  return "'Hiragino Mincho ProN','MS Mincho',serif";
+    if (/MSMincho|MS.Mincho/i.test(aeFont))        return "'Hiragino Mincho ProN','MS Mincho',serif";
+    if (/Times/i.test(aeFont))   return 'serif';
+    if (/Courier/i.test(aeFont)) return 'monospace';
+    return 'sans-serif';
+  }
+  function justToAlign(j) {
+    try {
+      if (j === ParagraphJustification.LEFT_JUSTIFY)  return 'left';
+      if (j === ParagraphJustification.RIGHT_JUSTIFY) return 'right';
+    } catch(e) {}
+    return 'center';
+  }
+  function alignToJust(a) {
+    try {
+      if (a === 'left')  return ParagraphJustification.LEFT_JUSTIFY;
+      if (a === 'right') return ParagraphJustification.RIGHT_JUSTIFY;
+      return ParagraphJustification.CENTER_JUSTIFY;
+    } catch(e) { return undefined; }
+  }
+
+  // ─── KFをAEレイヤーに適用 ────────────────────────────────────────────────
+  function applyKfToLayer(layer, clip, tStart, cw, ch) {
+    if (!clip.kf) return;
+    // 位置 KF
+    if (clip.kf.pos && clip.kf.pos.length > 0) {
+      try {
+        var pp = layer.transform.position;
+        for (var i=0;i<clip.kf.pos.length;i++) {
+          var kp=clip.kf.pos[i];
+          pp.setValueAtTime(tStart+kp.t, [cw/2+(kp.x||0), ch/2+(kp.y||0)]);
+        }
+      } catch(e) {}
+    }
+    // 回転 KF
+    if (clip.kf.rot && clip.kf.rot.length > 0) {
+      try {
+        var rp = layer.transform.rotation;
+        for (var i=0;i<clip.kf.rot.length;i++) {
+          var kr=clip.kf.rot[i];
+          rp.setValueAtTime(tStart+kr.t, kr.v);
+        }
+      } catch(e) {}
+    } else if (clip.rot && Math.abs(clip.rot) > 0.001) {
+      try { layer.transform.rotation.setValue(clip.rot); } catch(e) {}
+    }
+    // スケール KF
+    if (clip.kf.scale && clip.kf.scale.length > 0) {
+      try {
+        var sp = layer.transform.scale;
+        for (var i=0;i<clip.kf.scale.length;i++) {
+          var ks=clip.kf.scale[i];
+          sp.setValueAtTime(tStart+ks.t, [ks.v*100, ks.v*100]);
+        }
+      } catch(e) {}
+    }
+    // 透明度 KF
+    if (clip.kf.opacity && clip.kf.opacity.length > 0) {
+      try {
+        var op = layer.transform.opacity;
+        for (var i=0;i<clip.kf.opacity.length;i++) {
+          var ko=clip.kf.opacity[i];
+          op.setValueAtTime(tStart+ko.t, ko.v*100);
+        }
+      } catch(e) {}
+    } else if (clip.opacity !== undefined && Math.abs(clip.opacity-1) > 0.001) {
+      try { layer.transform.opacity.setValue(clip.opacity*100); } catch(e) {}
+    }
+  }
+
+  // ─── AEレイヤーのトランスフォームをclipに書き出す ────────────────────────
+  function exportTransformToClip(lay, clip, tStart, cw, ch) {
+    // 位置
+    try {
+      var pp = lay.transform.position;
+      if (pp.numKeys > 0) {
+        clip.kf = clip.kf || {};
+        clip.kf.pos = [];
+        for (var i=1;i<=pp.numKeys;i++) {
+          var v=pp.keyValue(i);
+          clip.kf.pos.push({t:pp.keyTime(i)-tStart, x:v[0]-cw/2, y:v[1]-ch/2});
+        }
+        clip.x = clip.kf.pos[0].x; clip.y = clip.kf.pos[0].y;
+      } else {
+        var pv=pp.value; clip.x=pv[0]-cw/2; clip.y=pv[1]-ch/2;
+      }
+    } catch(e) {}
+    // 回転
+    try {
+      var rp = lay.transform.rotation;
+      if (rp.numKeys > 0) {
+        clip.kf = clip.kf || {};
+        clip.kf.rot = [];
+        for (var i=1;i<=rp.numKeys;i++)
+          clip.kf.rot.push({t:rp.keyTime(i)-tStart, v:rp.keyValue(i)});
+        clip.rot = clip.kf.rot[0].v;
+      } else {
+        var rv=rp.value; if (Math.abs(rv)>0.001) clip.rot=rv;
+      }
+    } catch(e) {}
+    // スケール
+    try {
+      var sp = lay.transform.scale;
+      if (sp.numKeys > 0) {
+        clip.kf = clip.kf || {};
+        clip.kf.scale = [];
+        for (var i=1;i<=sp.numKeys;i++) {
+          var sv=sp.keyValue(i);
+          clip.kf.scale.push({t:sp.keyTime(i)-tStart, v:sv[0]/100});
+        }
+        clip.scale = clip.kf.scale[0].v;
+      } else {
+        var sv2=sp.value; clip.scale=sv2[0]/100;
+      }
+    } catch(e) {}
+    // 透明度（単純フェードはfadeIn/fadeOutへ、複雑KFはkf.opacityへ）
+    try {
+      var op = lay.transform.opacity;
+      if (op.numKeys > 0) {
+        var nk=op.numKeys, v0=op.keyValue(1), vN=op.keyValue(nk);
+        if (nk===2 && v0<5 && vN>95) { clip.fadeIn=op.keyTime(2)-tStart; }
+        else if (nk===2 && v0>95 && vN<5) { clip.fadeOut=tStart+(clip.dur||0)-op.keyTime(1); }
+        else {
+          clip.kf = clip.kf || {};
+          clip.kf.opacity = [];
+          for (var i=1;i<=nk;i++)
+            clip.kf.opacity.push({t:op.keyTime(i)-tStart, v:op.keyValue(i)/100});
+          clip.opacity = clip.kf.opacity[0].v;
+        }
+      } else {
+        var ov=op.value; if (Math.abs(ov-100)>0.5) clip.opacity=ov/100;
+      }
+    } catch(e) {}
+  }
+
   // ─── UI ───────────────────────────────────────────────────────────────────
   function buildUI(thisObj) {
     var win = (thisObj instanceof Panel)
@@ -247,6 +405,51 @@
     log('── エクスポート完了 ──');
   }
 
+  // ─── AEレイヤーのトランスフォームをclipに書き出す ────────────────────────
+  function exportTransformToClip(lay, clip, tStart, cw, ch) {
+    // 位置
+    try {
+      var pp=lay.transform.position;
+      if (pp.numKeys>0) {
+        clip.kf=clip.kf||{}; clip.kf.pos=[];
+        for(var i=1;i<=pp.numKeys;i++){var v=pp.keyValue(i);clip.kf.pos.push({t:pp.keyTime(i)-tStart,x:v[0]-cw/2,y:v[1]-ch/2});}
+        clip.x=clip.kf.pos[0].x; clip.y=clip.kf.pos[0].y;
+      } else { var pv=pp.value; clip.x=pv[0]-cw/2; clip.y=pv[1]-ch/2; }
+    } catch(e) {}
+    // 回転
+    try {
+      var rp=lay.transform.rotation;
+      if (rp.numKeys>0) {
+        clip.kf=clip.kf||{}; clip.kf.rot=[];
+        for(var i=1;i<=rp.numKeys;i++) clip.kf.rot.push({t:rp.keyTime(i)-tStart,v:rp.keyValue(i)});
+        clip.rot=clip.kf.rot[0].v;
+      } else { var rv=rp.value; if(Math.abs(rv)>0.001)clip.rot=rv; }
+    } catch(e) {}
+    // スケール
+    try {
+      var sp=lay.transform.scale;
+      if (sp.numKeys>0) {
+        clip.kf=clip.kf||{}; clip.kf.scale=[];
+        for(var i=1;i<=sp.numKeys;i++){var sv=sp.keyValue(i);clip.kf.scale.push({t:sp.keyTime(i)-tStart,v:sv[0]/100});}
+        clip.scale=clip.kf.scale[0].v;
+      } else { var sv2=sp.value; clip.scale=sv2[0]/100; }
+    } catch(e) {}
+    // 透明度（2点フェードはfadeIn/Out、それ以外はkf.opacity）
+    try {
+      var op=lay.transform.opacity;
+      if (op.numKeys>0) {
+        var nk=op.numKeys,v0=op.keyValue(1),vN=op.keyValue(nk);
+        if (nk===2&&v0<5&&vN>95) { clip.fadeIn=op.keyTime(2)-tStart; }
+        else if (nk===2&&v0>95&&vN<5) { clip.fadeOut=tStart+(clip.dur||0)-op.keyTime(1); }
+        else {
+          clip.kf=clip.kf||{}; clip.kf.opacity=[];
+          for(var i=1;i<=nk;i++) clip.kf.opacity.push({t:op.keyTime(i)-tStart,v:op.keyValue(i)/100});
+          clip.opacity=clip.kf.opacity[0].v;
+        }
+      } else { var ov=op.value; if(Math.abs(ov-100)>0.5)clip.opacity=ov/100; }
+    } catch(e) {}
+  }
+
   function buildAEminiProject(mainComp, allComps, log) {
     var uid = 1;
     function nid() { return uid++; }
@@ -395,17 +598,6 @@
         var lay = aeComp.layers[li];
         if (!lay.enabled) continue;
         if (lay instanceof CameraLayer || lay instanceof LightLayer) continue;
-        if (!(lay instanceof AVLayer)) continue;
-
-        var srcItem = null;
-        try { srcItem = lay.source; } catch(e) {}
-
-        var isAudioOnly = false;
-        try {
-          if (srcItem instanceof FootageItem) {
-            isAudioOnly = srcItem.hasAudio && !srcItem.hasVideo;
-          }
-        } catch(e) {}
 
         var tStart = 0, durL = 0, trimIn = 0, speed = 1;
         try {
@@ -417,56 +609,59 @@
         } catch(e) {}
         if (durL <= 0) continue;
 
+        // ── テキストレイヤー ────────────────────────────────────────────
+        var isTextLay = false;
+        try { isTextLay = (lay instanceof TextLayer); } catch(e) {}
+        if (isTextLay) {
+          var textAid = nid();
+          var textAsset = {
+            id: textAid, type: 'text',
+            name: lay.name, originalName: lay.name, displayName: lay.name,
+            filePath: null, duration: 9999, seqFps: null, frameCount: 1, folderId: null,
+            text: lay.name, fontSize: 80, fontFamily: 'sans-serif',
+            align: 'center', bold: false, italic: false, stroke: 0, strokeColor: '#000000', color: '#ffffff'
+          };
+          try {
+            var td = lay.sourceText.value;
+            textAsset.text      = td.text || lay.name;
+            textAsset.fontSize  = td.fontSize || 80;
+            textAsset.color     = rgb3ToHex(td.fillColor || [1,1,1]);
+            textAsset.fontFamily= mapAEFontToCSS(td.font || '');
+            textAsset.align     = justToAlign(td.justification);
+            try { textAsset.bold=!!td.bold; } catch(e2) {}
+            try { textAsset.italic=!!td.italic; } catch(e2) {}
+            if (td.strokeWidth>0) { textAsset.stroke=Math.round(td.strokeWidth/2); textAsset.strokeColor=rgb3ToHex(td.strokeColor||[0,0,0]); }
+          } catch(e) {}
+          proj.assets.push(textAsset);
+
+          var tvid = nid();
+          tlvComp.vLayers.push({id:tvid, name:lay.name});
+          var tclip = {id:nid(),layerId:tvid,assetId:textAid,tStart:tStart,dur:durL,trimIn:0,speed:speed,fadeIn:0,fadeOut:0,x:0,y:0,scale:1,natW:aeComp.width,natH:aeComp.height};
+          exportTransformToClip(lay, tclip, tStart, aeComp.width, aeComp.height);
+          tlvComp.clips.push(tclip);
+          log('  TEXT: ' + lay.name);
+          continue;
+        }
+
+        if (!(lay instanceof AVLayer)) continue;
+
+        var srcItem = null;
+        try { srcItem = lay.source; } catch(e) {}
+
+        var isAudioOnly = false;
+        try { if (srcItem instanceof FootageItem) isAudioOnly = srcItem.hasAudio && !srcItem.hasVideo; } catch(e) {}
+
         if (isAudioOnly) {
           var tid = nid();
-          tlvComp.aTracks.push({ id: tid, name: lay.name });
-          tlvComp.aClips.push({
-            id: nid(),
-            assetId: (srcItem && assetMap[srcItem.id]) ? assetMap[srcItem.id] : null,
-            trackId: tid,
-            tStart: tStart, dur: durL, trimIn: trimIn, speed: speed, vol: 1
-          });
+          tlvComp.aTracks.push({id:tid, name:lay.name});
+          tlvComp.aClips.push({id:nid(), assetId:(srcItem&&assetMap[srcItem.id])?assetMap[srcItem.id]:null, trackId:tid, tStart:tStart, dur:durL, trimIn:trimIn, speed:speed, vol:1});
         } else {
           var vid = nid();
-          tlvComp.vLayers.push({ id: vid, name: lay.name });
-          var clip = {
-            id: nid(), layerId: vid,
-            tStart: tStart, dur: durL, trimIn: trimIn, speed: speed,
-            fadeIn: 0, fadeOut: 0,
-            x: 0, y: 0, scale: 1,
-            natW: aeComp.width, natH: aeComp.height
-          };
-
-          // ソースを設定
-          if ((srcItem instanceof CompItem) && compIdMap[srcItem.id]) {
-            clip.compId = compIdMap[srcItem.id];
-          } else if (srcItem && assetMap[srcItem.id]) {
-            clip.assetId = assetMap[srcItem.id];
-          }
-
-          // トランスフォーム
-          try {
-            var pos = lay.transform.position.value;
-            clip.x = pos[0] - aeComp.width  / 2;
-            clip.y = pos[1] - aeComp.height / 2;
-          } catch(e) {}
-          try {
-            var sc = lay.transform.scale.value;
-            clip.scale = sc[0] / 100;
-          } catch(e) {}
-
-          // フェード検出
-          try {
-            var op = lay.transform.opacity;
-            if (op.numKeys >= 2) {
-              var v0 = op.keyValue(1);
-              if (v0 < 50) clip.fadeIn = op.keyTime(2) - tStart;
-              var nk = op.numKeys;
-              var vLast = op.keyValue(nk);
-              if (vLast < 50 && nk >= 2) clip.fadeOut = tStart + durL - op.keyTime(nk - 1);
-            }
-          } catch(e) {}
-
+          tlvComp.vLayers.push({id:vid, name:lay.name});
+          var clip = {id:nid(),layerId:vid, tStart:tStart,dur:durL,trimIn:trimIn,speed:speed, fadeIn:0,fadeOut:0, x:0,y:0,scale:1, natW:aeComp.width,natH:aeComp.height};
+          if ((srcItem instanceof CompItem) && compIdMap[srcItem.id]) clip.compId = compIdMap[srcItem.id];
+          else if (srcItem && assetMap[srcItem.id]) clip.assetId = assetMap[srcItem.id];
+          exportTransformToClip(lay, clip, tStart, aeComp.width, aeComp.height);
           tlvComp.clips.push(clip);
         }
       }
@@ -542,12 +737,21 @@
 
     // ── 素材インポート ────────────────────────────────────────────────────
     var assetMap = {};
-    var solidColorMap = {};  // assetId → {r,g,b,name} 平面は layers.addSolid() で追加
+    var solidColorMap = {};
+    var textAssetMap  = {};
     var assets = proj.assets || [];
     var okCnt = 0, ngCnt = 0;
     for (var ai = 0; ai < assets.length; ai++) {
       var asset = assets[ai];
       if (!asset || asset.type === 'comp') continue;
+
+      // テキスト素材: ファイル不要→textAssetMapに格納してpopulateCompでレイヤー生成
+      if (asset.type === 'text') {
+        textAssetMap[asset.id] = asset;
+        okCnt++;
+        log('  OK (テキスト): ' + (asset.name||'text'));
+        continue;
+      }
 
       // 平面: footage item は作らず色情報だけ保持 → populateComp で layers.addSolid()
       if (asset.type === 'solid' && asset.color) {
@@ -702,7 +906,7 @@
       if (!aeC) continue;
       log('レイヤー配置: ' + tc.name + ' ...');
       try {
-        populateComp(aeC, tc, assetMap, assetNameMap, solidColorMap, compMap, aeFolderMap, cw, ch, log);
+        populateComp(aeC, tc, assetMap, assetNameMap, solidColorMap, textAssetMap, compMap, aeFolderMap, cw, ch, log);
       } catch(e) {
         log('[エラー] レイヤー配置中に予期せぬエラー: ' + e.message + (e.line ? ' (line ' + e.line + ')' : ''));
       }
@@ -742,16 +946,14 @@
     log('── インポート完了 ──');
   }
 
-  function populateComp(aeComp, tlvComp, assetMap, assetNameMap, solidColorMap, compMap, aeFolderMap, cw, ch, log) {
+  function populateComp(aeComp, tlvComp, assetMap, assetNameMap, solidColorMap, textAssetMap, compMap, aeFolderMap, cw, ch, log) {
     var vLayers = tlvComp.vLayers || [];
     var clips   = tlvComp.clips   || [];
     var aTracks = tlvComp.aTracks || [];
     var aClips  = tlvComp.aClips  || [];
 
     var layerOrder = {};
-    for (var li = 0; li < vLayers.length; li++) {
-      layerOrder[vLayers[li].id] = li;
-    }
+    for (var li = 0; li < vLayers.length; li++) layerOrder[vLayers[li].id] = li;
 
     var sortedClips = clips.slice().sort(function (a, b) {
       var ia = (layerOrder[a.layerId] !== undefined) ? layerOrder[a.layerId] : 9999;
@@ -759,160 +961,107 @@
       return ib - ia;
     });
 
-    // ── 映像クリップ ─────────────────────────────────────────────────────
     for (var ci = 0; ci < sortedClips.length; ci++) {
       var clip = sortedClips[ci];
-
       var layName = '';
       for (var li2 = 0; li2 < vLayers.length; li2++) {
         if (vLayers[li2].id === clip.layerId) { layName = vLayers[li2].name; break; }
       }
-
       var tStart = Number(clip.tStart) || 0;
       var dur    = Number(clip.dur)    || 1;
       var trimIn = Number(clip.trimIn) || 0;
       var speed  = Number(clip.speed)  || 1;
 
-      // ── 平面クリップ: layers.addSolid() で直接追加 ──────────────────
+      // ── 平面クリップ ──────────────────────────────────────────────────
       var solidInfo = solidColorMap[clip.assetId];
       if (solidInfo) {
         try {
-          var slayer = aeComp.layers.addSolid(
-            [solidInfo.r, solidInfo.g, solidInfo.b],
-            solidInfo.name, cw, ch, 1.0, dur
-          );
-          // AEはaddSolid()で自動的に「ソリッド」フォルダに入れるので
-          // 元のフォルダ指定があれば移動、なければルートに移動
+          var sl = aeComp.layers.addSolid([solidInfo.r,solidInfo.g,solidInfo.b], solidInfo.name, cw, ch, 1.0, dur);
+          try { if (solidInfo.folderId&&aeFolderMap[solidInfo.folderId]) sl.source.parentFolder=aeFolderMap[solidInfo.folderId]; else sl.source.parentFolder=app.project.rootFolder; } catch(e) {}
+          try { if (layName) sl.name=layName; } catch(e) {}
+          try { sl.startTime=tStart; sl.inPoint=tStart; sl.outPoint=tStart+dur; } catch(e) {}
+          if (!clip.kf||!clip.kf.pos) { try { if ((clip.x||0)!==0||(clip.y||0)!==0) sl.transform.position.setValue([cw/2+(clip.x||0),ch/2+(clip.y||0)]); } catch(e) {} }
+          if (!clip.kf||!clip.kf.scale) { try { var ss=Number(clip.scale)||1; if (Math.abs(ss-1)>0.001) sl.transform.scale.setValue([ss*100,ss*100]); } catch(e) {} }
+          applyKfToLayer(sl, clip, tStart, cw, ch);
+          if (!clip.kf||!clip.kf.opacity) { try { var fi=Number(clip.fadeIn)||0,fo=Number(clip.fadeOut)||0; if(fi>0||fo>0){var op=sl.transform.opacity;if(fi>0){op.setValueAtTime(tStart,0);op.setValueAtTime(tStart+fi,100);}if(fo>0){op.setValueAtTime(tStart+dur-fo,100);op.setValueAtTime(tStart+dur,0);}} } catch(e) {} }
+          log('  SOLID: ' + sl.name + '  ' + solidInfo.hex);
+        } catch(e) { log('  [エラー] 平面追加失敗 (' + layName + '): ' + e.message); }
+        continue;
+      }
+
+      // ── テキストクリップ ─────────────────────────────────────────────
+      var textInfo = textAssetMap && textAssetMap[clip.assetId];
+      if (textInfo) {
+        try {
+          var tl = aeComp.layers.addText(textInfo.text || '');
+          try { if (layName) tl.name=layName; } catch(e) {}
           try {
-            if (solidInfo.folderId && aeFolderMap[solidInfo.folderId]) {
-              slayer.source.parentFolder = aeFolderMap[solidInfo.folderId];
-            } else {
-              slayer.source.parentFolder = app.project.rootFolder;
-            }
-          } catch(e) {}
-          try { if (layName) slayer.name = layName; } catch(e) {}
-          try { slayer.startTime = tStart; } catch(e) {}
-          try { slayer.inPoint  = tStart;       } catch(e) {}
-          try { slayer.outPoint = tStart + dur; } catch(e) {}
-          // 平面のトランスフォーム（位置・スケール）を反映
-          try {
-            if ((clip.x || 0) !== 0 || (clip.y || 0) !== 0) {
-              slayer.transform.position.setValue([cw/2 + (Number(clip.x)||0), ch/2 + (Number(clip.y)||0)]);
-            }
-          } catch(e) {}
-          try {
-            var solidSc = Number(clip.scale) || 1;
-            if (Math.abs(solidSc - 1) > 0.001) slayer.transform.scale.setValue([solidSc*100, solidSc*100]);
-          } catch(e) {}
-          // フェードイン/アウト
-          try {
-            var fi = Number(clip.fadeIn)  || 0;
-            var fo = Number(clip.fadeOut) || 0;
-            if (fi > 0 || fo > 0) {
-              var opProp = slayer.transform.opacity;
-              if (fi > 0) { opProp.setValueAtTime(tStart, 0); opProp.setValueAtTime(tStart + fi, 100); }
-              if (fo > 0) { opProp.setValueAtTime(tStart + dur - fo, 100); opProp.setValueAtTime(tStart + dur, 0); }
-            }
-          } catch(e) {}
-          log('  SOLID: ' + slayer.name + '  ' + solidInfo.hex);
-        } catch(e) {
-          log('  [エラー] 平面レイヤー追加失敗 (' + layName + '): ' + e.message);
-        }
+            var srcP=tl.sourceText, doc=srcP.value;
+            doc.fontSize = Number(textInfo.fontSize)||80;
+            doc.fillColor = hexToRGB3(textInfo.color||'#ffffff');
+            try { doc.font = mapCSSFontToAE(textInfo.fontFamily||'sans-serif'); } catch(e2) {}
+            try { var j=alignToJust(textInfo.align||'center'); if(j!==undefined)doc.justification=j; } catch(e2) {}
+            if (Number(textInfo.stroke)>0) { try { doc.strokeColor=hexToRGB3(textInfo.strokeColor||'#000000'); doc.strokeWidth=Number(textInfo.stroke)*2; doc.strokeOverFill=true; } catch(e2) {} }
+            srcP.setValue(doc);
+          } catch(e) { log('  [警告] テキスト属性失敗: '+e.message); }
+          try { tl.startTime=tStart; tl.inPoint=tStart; tl.outPoint=tStart+dur; } catch(e) {}
+          if (!clip.kf||!clip.kf.pos) { try { if((clip.x||0)!==0||(clip.y||0)!==0) tl.transform.position.setValue([cw/2+(clip.x||0),ch/2+(clip.y||0)]); } catch(e) {} }
+          if (!clip.kf||!clip.kf.scale) { try { var ts=Number(clip.scale)||1; if(Math.abs(ts-1)>0.001) tl.transform.scale.setValue([ts*100,ts*100]); } catch(e) {} }
+          applyKfToLayer(tl, clip, tStart, cw, ch);
+          log('  TEXT: ' + tl.name);
+        } catch(e) { log('  [エラー] テキスト追加失敗 (' + layName + '): ' + e.message); }
         continue;
       }
 
       // ── 通常クリップ ─────────────────────────────────────────────────
       var src = null;
       try {
-        if (clip.compId !== undefined) {
-          src = compMap[clip.compId] || null;
-        } else if (clip.assetId !== undefined) {
-          src = assetMap[clip.assetId] || null;
-        }
+        if (clip.compId !== undefined) src = compMap[clip.compId] || null;
+        else if (clip.assetId !== undefined) src = assetMap[clip.assetId] || null;
       } catch(e) {}
 
       if (!src) {
-        // 素材が見つからない場合: グレーの平面で代用（削除せず位置・サイズも再現）
-        // 素材名（例: "ペン 5f"）を使って識別できるようにする
-        var assetDispName = (clip.assetId && assetNameMap && assetNameMap[clip.assetId]) ? assetNameMap[clip.assetId] : '';
-        var phName = assetDispName ? (assetDispName + ' [不明]') : (layName ? layName + ' [不明]' : '不明_' + (clip.assetId || '?'));
-        log('  [不明] 素材なし → グレー平面で代用: ' + phName);
+        var dispName = (clip.assetId&&assetNameMap&&assetNameMap[clip.assetId]) ? assetNameMap[clip.assetId] : '';
+        var phName = dispName ? (dispName+' [不明]') : (layName ? layName+' [不明]' : '不明_'+(clip.assetId||'?'));
+        log('  [不明] 素材なし → グレー平面: ' + phName);
         try {
-          var slayer = aeComp.layers.addSolid([0.45, 0.45, 0.45], phName, cw, ch, 1.0, dur);
-          try {
-            if (solidColorMap && slayer.source) {
-              slayer.source.parentFolder = app.project.rootFolder;
-            }
-          } catch(e2) {}
-          try { slayer.startTime = tStart - trimIn; } catch(e2) { try { slayer.startTime = 0; } catch(e3) {} }
-          try { slayer.inPoint  = tStart; } catch(e2) {}
-          try { slayer.outPoint = tStart + dur; } catch(e2) {}
-          try {
-            if ((clip.x || 0) !== 0 || (clip.y || 0) !== 0) {
-              slayer.transform.position.setValue([cw/2 + (Number(clip.x)||0), ch/2 + (Number(clip.y)||0)]);
-            }
-          } catch(e2) {}
-          try {
-            var phSc = Number(clip.scale) || 1;
-            if (Math.abs(phSc - 1) > 0.001) slayer.transform.scale.setValue([phSc*100, phSc*100]);
-          } catch(e2) {}
-          log('  V (不明グレー平面): ' + slayer.name);
-        } catch(e) {
-          log('  [エラー] 不明素材の代用平面追加失敗: ' + e.message);
-        }
+          var pl = aeComp.layers.addSolid([0.45,0.45,0.45], phName, cw, ch, 1.0, dur);
+          try { pl.source.parentFolder=app.project.rootFolder; } catch(e2) {}
+          try { pl.startTime=tStart-trimIn; pl.inPoint=tStart; pl.outPoint=tStart+dur; } catch(e2) {}
+          try { if((clip.x||0)!==0||(clip.y||0)!==0) pl.transform.position.setValue([cw/2+(clip.x||0),ch/2+(clip.y||0)]); } catch(e2) {}
+          try { var ps=Number(clip.scale)||1; if(Math.abs(ps-1)>0.001) pl.transform.scale.setValue([ps*100,ps*100]); } catch(e2) {}
+          applyKfToLayer(pl, clip, tStart, cw, ch);
+          log('  V (不明): ' + pl.name);
+        } catch(e) { log('  [エラー] 代用平面失敗: ' + e.message); }
         continue;
       }
 
       try {
         var layer = aeComp.layers.add(src);
-        try { if (layName) layer.name = layName; } catch(e) {}
-        try { if (Math.abs(speed - 1) > 0.001) layer.stretch = 100 / speed; } catch(e) {
-          log('  [警告] stretch 設定失敗 (' + layName + ')');
+        try { if (layName) layer.name=layName; } catch(e) {}
+        try { if (Math.abs(speed-1)>0.001) layer.stretch=100/speed; } catch(e) {}
+        try { layer.startTime=tStart-trimIn; layer.inPoint=tStart; layer.outPoint=tStart+dur; } catch(e) {}
+        // 静的トランスフォーム（KFなし時のみ）
+        if (!clip.kf||!clip.kf.pos) { try { if((clip.x||0)!==0||(clip.y||0)!==0) layer.transform.position.setValue([cw/2+(clip.x||0),ch/2+(clip.y||0)]); } catch(e) {} }
+        if (!clip.kf||!clip.kf.scale) { try { var sc=Number(clip.scale)||1; if(Math.abs(sc-1)>0.001) layer.transform.scale.setValue([sc*100,sc*100]); } catch(e) {} }
+        // KFを適用
+        applyKfToLayer(layer, clip, tStart, cw, ch);
+        // フェードイン/アウト（KF透明度がない場合のみ）
+        if (!clip.kf||!clip.kf.opacity) {
+          try { var fi2=Number(clip.fadeIn)||0,fo2=Number(clip.fadeOut)||0; if(fi2>0||fo2>0){var op2=layer.transform.opacity;if(fi2>0){op2.setValueAtTime(tStart,0);op2.setValueAtTime(tStart+fi2,100);}if(fo2>0){op2.setValueAtTime(tStart+dur-fo2,100);op2.setValueAtTime(tStart+dur,0);}}} catch(e) {}
         }
-        try { layer.startTime = tStart - trimIn; } catch(e) { try { layer.startTime = 0; } catch(e2) {} }
-        try { layer.inPoint  = tStart;       } catch(e) {}
-        try { layer.outPoint = tStart + dur; } catch(e) {}
+        // ガウスぼかし
         try {
-          if ((clip.x || 0) !== 0 || (clip.y || 0) !== 0) {
-            layer.transform.position.setValue([cw/2 + (Number(clip.x)||0), ch/2 + (Number(clip.y)||0)]);
-          }
-        } catch(e) {}
-        try {
-          var sc = Number(clip.scale) || 1;
-          if (Math.abs(sc - 1) > 0.001) layer.transform.scale.setValue([sc*100, sc*100]);
-        } catch(e) {}
-        try {
-          var fi2 = Number(clip.fadeIn)  || 0;
-          var fo2 = Number(clip.fadeOut) || 0;
-          if (fi2 > 0 || fo2 > 0) {
-            var opProp2 = layer.transform.opacity;
-            if (fi2 > 0) { opProp2.setValueAtTime(tStart, 0); opProp2.setValueAtTime(tStart + fi2, 100); }
-            if (fo2 > 0) { opProp2.setValueAtTime(tStart + dur - fo2, 100); opProp2.setValueAtTime(tStart + dur, 0); }
-          }
-        } catch(e) {}
-        // ── ガウスぼかし → AE「ブラー（ガウス）」エフェクト ──────────────
-        try {
-          var blurVal = Number(clip.blur) || 0;
-          if (blurVal > 0) {
-            // "Gaussian Blur" (英語版) / "ブラー（ガウス）" (日本語版) を試みる
-            var blurEffect = null;
-            try { blurEffect = layer.Effects.addProperty('ADBE Gaussian Blur 2'); } catch(e) {}
-            if (!blurEffect) {
-              try { blurEffect = layer.Effects.addProperty('Gaussian Blur'); } catch(e) {}
-            }
-            if (blurEffect) {
-              // ブラーの数値 (property index 1)
-              try { blurEffect.property(1).setValue(blurVal); } catch(e) {}
-              // エッジピクセルの繰り返し (property index 3) = true
-              try { blurEffect.property(3).setValue(true); } catch(e) {}
-              log('  ブラー追加: ' + blurVal + 'px → ' + layer.name);
-            }
+          var blurVal=Number(clip.blur)||0;
+          if (blurVal>0) {
+            var blurEff=null;
+            try { blurEff=layer.Effects.addProperty('ADBE Gaussian Blur 2'); } catch(e) {}
+            if (!blurEff) { try { blurEff=layer.Effects.addProperty('Gaussian Blur'); } catch(e) {} }
+            if (blurEff) { try{blurEff.property(1).setValue(blurVal);}catch(e){} try{blurEff.property(3).setValue(true);}catch(e){} log('  ブラー: '+blurVal+'px → '+layer.name); }
           }
         } catch(e) {}
         log('  V: ' + layer.name);
-      } catch(e) {
-        log('  [エラー] V レイヤー追加失敗 (' + layName + '): ' + e.message);
-      }
+      } catch(e) { log('  [エラー] Vレイヤー追加失敗 (' + layName + '): ' + e.message); }
     }
 
     // ── 音声クリップ ─────────────────────────────────────────────────────

@@ -45,7 +45,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .kf-diamond:hover{filter:brightness(1.4);z-index:5}
 .kf-c-opacity{background:#ffcc00;box-shadow:0 0 4px rgba(255,200,0,.7)}
 .kf-c-pos{background:#ff4444;box-shadow:0 0 4px rgba(255,60,60,.7)}
-.kf-c-scale{background:#4488ff;box-shadow:0 0 4px rgba(60,120,255,.7)}
+.kf-c-rot{background:#4488ff;box-shadow:0 0 4px rgba(60,120,255,.7)}
+.kf-c-scale{background:#44cc44;box-shadow:0 0 4px rgba(60,200,60,.7)}
 .kf-row{display:flex;align-items:center;gap:3px;margin-bottom:6px;}
 .kf-btn{font-size:10px;padding:1px 5px;background:#1e1e1e;border:1px solid #333;border-radius:3px;color:#888;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .kf-btn.on{background:#2a2000;border-color:#aa8800;color:#ffcc00}
@@ -1525,14 +1526,15 @@ function rebuildTl(){
       ce.innerHTML='<div class="rsz-l"></div>'
         +'<span class="clip-lbl" style="color:'+txtCol+'">'+(clip.compId?'◆ ':'' )+(hasRemap?'⟲'+((clip.speed||1).toFixed(2))+'x ':'')+label+'</span>'
         +'<div class="rsz-r"></div>';
-      // KFダイヤモンドを追加（位置=赤・スケール=青・透明度=黄、縦ずらし）
+      // KFダイヤモンドを追加（移動=赤・回転=青・拡縮=緑・透明度=黄、縦ずらし）
       if(clip.kf){
         var kfConf={
-          'pos':    ['kf-c-pos',     22, '位置'],
-          'scale':  ['kf-c-scale',   50, 'スケール'],
-          'opacity':['kf-c-opacity', 78, '透明度']
+          'pos':    ['kf-c-pos',     14,'位置'],
+          'rot':    ['kf-c-rot',     35,'回転'],
+          'scale':  ['kf-c-scale',   57,'拡縮'],
+          'opacity':['kf-c-opacity', 78,'透明度']
         };
-        ['pos','scale','opacity'].forEach(function(prop){
+        ['pos','rot','scale','opacity'].forEach(function(prop){
           if(!clip.kf[prop]||!clip.kf[prop].length)return;
           var conf=kfConf[prop];
           clip.kf[prop].forEach(function(kp,ki){
@@ -1734,6 +1736,9 @@ function clipCurrentXY(clip,lt){
 function clipCurrentScale(clip,lt){
   return kfHas(clip,'scale')?kfInterp(clip.kf.scale,lt):(clip.scale||1);
 }
+function clipCurrentRot(clip,lt){
+  return kfHas(clip,'rot')?kfInterp(clip.kf.rot,lt):(clip.rot||0);
+}
 C.addEventListener('mousedown',function(e){
   if(_penMode){
     if(startPenStroke(e)){penDraw(e);}
@@ -1862,28 +1867,21 @@ function applyClipToCtx(ctx2,frame,clip,lt,compW,compH){
   var op=kfHas(clip,'opacity')?kfInterp(clip.kf.opacity,lt):(calcOp(clip,lt));
   if(op<=0)return;
   var cx,cy;
-  if(kfHas(clip,'pos')){
-    cx=kfInterpXY(clip.kf.pos,lt,'x');
-    cy=kfInterpXY(clip.kf.pos,lt,'y');
-  } else {
-    cx=clip.x||0; cy=clip.y||0;
-  }
+  if(kfHas(clip,'pos')){cx=kfInterpXY(clip.kf.pos,lt,'x');cy=kfInterpXY(clip.kf.pos,lt,'y');}
+  else{cx=clip.x||0;cy=clip.y||0;}
   var sc=kfHas(clip,'scale')?kfInterp(clip.kf.scale,lt):(clip.scale||1);
+  var rot=kfHas(clip,'rot')?kfInterp(clip.kf.rot,lt):(clip.rot||0);
   var blend=clip.blendMode||'source-over';
   var blur=clip.blur||0;
   ctx2.save();
   ctx2.globalAlpha=Math.max(0,Math.min(1,op));
   ctx2.globalCompositeOperation=blend;
   ctx2.translate(compW/2+cx,compH/2+cy);
+  if(rot!==0)ctx2.rotate(rot*Math.PI/180);
   ctx2.scale(sc,sc);
   var nd=clipNatDims(clip);
-  if(blur>0){
-    ctx2.filter='blur('+blur+'px)';
-    ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);
-    ctx2.filter='none';
-  } else {
-    ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);
-  }
+  if(blur>0){ctx2.filter='blur('+blur+'px)';ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);ctx2.filter='none';}
+  else{ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);}
   ctx2.restore();
 }
 
@@ -1909,18 +1907,21 @@ function drawTransformHandles(clip){
   var lt2=S.time-clip.tStart;
   var pxy=clipCurrentXY(clip,lt2);
   var sc=clipCurrentScale(clip,lt2);
+  var rot=clipCurrentRot(clip,lt2);
   var cx=CW/2+pxy.x,cy=CH/2+pxy.y;
   var hw=nd.w/2*sc,hh=nd.h/2*sc,hr=handleRadius()*0.9;
   ctx.save();
+  ctx.translate(cx,cy);
+  if(rot!==0)ctx.rotate(rot*Math.PI/180);
   ctx.strokeStyle='rgba(255,255,255,0.75)';ctx.lineWidth=Math.max(1,CW/1920*1.5);ctx.setLineDash([Math.round(CW/120),Math.round(CW/240)]);
-  ctx.strokeRect(cx-hw,cy-hh,hw*2,hh*2);ctx.setLineDash([]);
-  [{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}].forEach(function(c){
+  ctx.strokeRect(-hw,-hh,hw*2,hh*2);ctx.setLineDash([]);
+  [{x:-hw,y:-hh},{x:hw,y:-hh},{x:-hw,y:hh},{x:hw,y:hh}].forEach(function(c){
     ctx.beginPath();ctx.arc(c.x,c.y,hr,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
     ctx.strokeStyle='#2e6ea6';ctx.lineWidth=Math.max(1.5,CW/960);ctx.stroke();
   });
   ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;var cs=hr*0.8;
-  ctx.beginPath();ctx.moveTo(cx-cs,cy);ctx.lineTo(cx+cs,cy);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cx,cy-cs);ctx.lineTo(cx,cy+cs);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-cs,0);ctx.lineTo(cs,0);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,-cs);ctx.lineTo(0,cs);ctx.stroke();
   ctx.restore();
 }
 
@@ -2012,7 +2013,7 @@ function renderProps(){
     var toggleCall="toggleKf('"+prop+"',"+min+","+max+","+def+")";
     var addCall="addKfNow('"+prop+"',"+min+","+max+","+def+")";
     var setCall="setKfNow('"+prop+"',parseFloat(this.value),"+min+","+max+","+def+")";
-    var propColor={'opacity':'#ffcc00','scale':'#4488ff'}[prop]||'#ffcc00';
+    var propColor={'opacity':'#ffcc00','rot':'#4488ff','scale':'#44cc44'}[prop]||'#ffcc00';
     var kfListHtml='';
     if(on&&clip.kf[prop].length){
       kfListHtml='<div class="kf-list" id="kfl_'+prop+'">';
@@ -2156,9 +2157,7 @@ function renderProps(){
   pi.innerHTML=compRefNote
     +textSection
     +'<div class="ps">配置</div>'
-    +mkTimeRow('開始','pTS',0,compDur,clip.tStart,"setProp('tStart',+this.value);g('pTS').textContent=fmtTime(+this.value);rebuildTl();")
     +mkTimeRow('長さ','pD',fs,Math.min(Math.max(aDur,1),60),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
-    +(clip.compId?'':mkTimeRow('素材オフセット','pTI',0,Math.max(0,aDur-fs),clip.trimIn||0,"setProp('trimIn',+this.value);g('pTI').textContent=fmtTime(+this.value);rebuildTl();"))
     +solidSection
     +'<div class="ps">合成</div>'
     +blendSel
@@ -2166,13 +2165,10 @@ function renderProps(){
     +mkRow('ガウスぼかし','pBlur',0,100,1,clip.blur||0,"setProp('blur',+this.value);g('pBlur').textContent=(+this.value).toFixed(0);")
     +'<div class="ps">タイムリマップ</div>'
     +mkRow('スピード','pSpd',0.1,10,0.05,clip.speed||1,"setProp('speed',+this.value);g('pSpd').textContent=(+this.value).toFixed(2);rebuildTl();")
-    +'<div class="ps">フェード</div>'
-    +'<p style="font-size:11px;color:#555;line-height:1.5;margin-bottom:6px">重複でクロスフェード (KFと併用不可)</p>'
-    +mkTimeRow('フェードイン','pFI',0,maxFade,clip.fadeIn,"setProp('fadeIn',+this.value);g('pFI').textContent=fmtTime(+this.value);")
-    +mkTimeRow('フェードアウト','pFO',0,maxFade,clip.fadeOut,"setProp('fadeOut',+this.value);g('pFO').textContent=fmtTime(+this.value);")
-    +'<div class="ps">位置 / スケール / 透明度 <span style="font-size:10px;color:#444">◆=KF有効</span></div>'
+    +'<div class="ps">移動 / 回転 / 拡縮 / 透明度 <span style="font-size:10px;color:#444">◆=KF</span></div>'
     +mkPosKfRow()
-    +mkKfRow('スケール','scale',0.01,10,0.01,clip.scale||1)
+    +mkKfRow('回転','rot',-360,360,0.1,clip.rot||0)
+    +mkKfRow('拡縮','scale',0.01,10,0.01,clip.scale||1)
     +mkKfRow('透明度','opacity',0,1,0.01,clip.opacity!==undefined?clip.opacity:1)
     +(function(){var nd=clipNatDims(clip);var sc=clip.scale||1;return '<div class="pr"><div class="pl" style="color:#555">実サイズ <span style="color:#888;font-family:monospace;font-size:10px">'+Math.round(nd.w*sc)+'×'+Math.round(nd.h*sc)+'px</span></div></div>';})()
     +'<button class="btn sm" style="margin-bottom:4px" onclick="resetTransform()">トランスフォームをリセット</button>'
@@ -2195,7 +2191,7 @@ function doKfDrag(e){
   rebuildTl();
 }
 
-function resetTransform(){var clip=findClip(S.selId);if(!clip)return;pushHistory();clip.x=0;clip.y=0;clip.scale=1;clip.opacity=1;if(clip.kf){delete clip.kf.pos;delete clip.kf.scale;delete clip.kf.opacity;}rebuildTl();renderProps();}
+function resetTransform(){var clip=findClip(S.selId);if(!clip)return;pushHistory();clip.x=0;clip.y=0;clip.rot=0;clip.scale=1;clip.opacity=1;if(clip.kf){delete clip.kf.pos;delete clip.kf.rot;delete clip.kf.scale;delete clip.kf.opacity;}rebuildTl();renderProps();}
 
 // ─── Keyframe functions ───────────────────────────────────────────────────
 function kfInterp(arr,t){
@@ -2244,13 +2240,14 @@ function toggleKf(prop,min,max,def){
   if(kfHas(clip,prop)){
     // 無効化: 現在時刻の補間値を通常プロパティに反映
     if(prop==='pos'){clip.x=kfInterpXY(clip.kf.pos,lt,'x');clip.y=kfInterpXY(clip.kf.pos,lt,'y');}
+    else if(prop==='rot')clip.rot=kfInterp(clip.kf.rot,lt);
     else if(prop==='opacity')clip.opacity=kfInterp(clip.kf.opacity,lt);
     else if(prop==='scale')clip.scale=kfInterp(clip.kf.scale,lt);
     delete clip.kf[prop];
   } else {
     // 有効化: 現在の値でKFを1つ追加
     if(prop==='pos'){kfAddPos(clip,lt,clip.x||0,clip.y||0);}
-    else{var curVal=prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):(clip.scale||1);kfAdd(clip,prop,lt,curVal);}
+    else{var curVal=prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):(clip.scale||1);kfAdd(clip,prop,lt,curVal);}
   }
   pushHistory();rebuildTl();renderProps();
 }
@@ -2262,7 +2259,7 @@ function addKfNow(prop,min,max,def){
     var cy=kfHas(clip,'pos')?kfInterpXY(clip.kf.pos,lt,'y'):(clip.y||0);
     kfAddPos(clip,lt,cx,cy);
   } else {
-    var curVal=kfHas(clip,prop)?kfInterp(clip.kf[prop],lt):(prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):(clip.scale||1));
+    var curVal=kfHas(clip,prop)?kfInterp(clip.kf[prop],lt):(prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):(clip.scale||1));
     kfAdd(clip,prop,lt,curVal);
   }
   pushHistory();rebuildTl();renderProps();
@@ -2271,7 +2268,7 @@ function setKfNow(prop,val,min,max,def){
   var clip=findClip(S.selId);if(!clip)return;
   var lt=snapToFrame(Math.max(0,S.time-clip.tStart));
   if(kfHas(clip,prop)){kfAdd(clip,prop,lt,val);}
-  else{if(prop==='opacity')clip.opacity=val;else if(prop==='scale')clip.scale=val;}
+  else{if(prop==='opacity')clip.opacity=val;else if(prop==='rot')clip.rot=val;else if(prop==='scale')clip.scale=val;}
   rebuildTl();
   updateKfListUI(); // KFリストだけ部分更新（入力フィールドはそのまま）
 }
@@ -2307,19 +2304,19 @@ function updateKfListUI(){
     });
     posEl.innerHTML=html;
   }
-  // scale/opacity リスト更新
-  ['scale','opacity'].forEach(function(prop){
+  // rot/scale/opacity リスト更新
+  ['rot','scale','opacity'].forEach(function(prop){
     var el=g('kfl_'+prop);
     if(!el||!clip.kf||!clip.kf[prop])return;
-    var color={'scale':'#4488ff','opacity':'#ffcc00'}[prop];
+    var color={'rot':'#4488ff','scale':'#44cc44','opacity':'#ffcc00'}[prop];
     var html='';
     clip.kf[prop].forEach(function(kp,ki){
       var isCur=Math.abs(kp.t-lt)<0.001;
-      var dec=prop==='scale'?2:2;
+      var dec=prop==='rot'?1:2;
       html+='<div class="kf-item'+(isCur?' cur':'')+'" onclick="seekToKf(\''+prop+'\','+ki+')"'
         +(isCur?' style="background:#1a1a00;color:'+color+'"':'')+' >'
         +'<span style="color:'+color+';font-size:9px">◆</span>'
-        +'<span>'+fmtTime(kp.t)+'</span><span>'+kp.v.toFixed(dec)+'</span>'
+        +'<span>'+fmtTime(kp.t)+'</span><span>'+kp.v.toFixed(dec)+'°</span>'
         +'<span onclick="event.stopPropagation();removeKf(\''+prop+'\','+ki+')" style="color:#553333;cursor:pointer;padding:0 3px">✕</span>'
         +'</div>';
     });
