@@ -47,6 +47,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .kf-c-pos{background:#ff4444;box-shadow:0 0 4px rgba(255,60,60,.7)}
 .kf-c-rot{background:#4488ff;box-shadow:0 0 4px rgba(60,120,255,.7)}
 .kf-c-scale{background:#44cc44;box-shadow:0 0 4px rgba(60,200,60,.7)}
+.kf-c-blur{background:#00ccdd;box-shadow:0 0 4px rgba(0,200,220,.6)}
+.scrub-lbl{cursor:ew-resize;user-select:none;}
 .kf-row{display:flex;align-items:center;gap:3px;margin-bottom:6px;}
 .kf-btn{font-size:10px;padding:1px 5px;background:#1e1e1e;border:1px solid #333;border-radius:3px;color:#888;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .kf-btn.on{background:#2a2000;border-color:#aa8800;color:#ffcc00}
@@ -158,9 +160,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   <button class="btn" onclick="openProject()">📂 読込</button>
   <button class="btn" onclick="saveProject()">💾 保存</button>
   <button class="btn" onclick="collectAndSave()">💾 収集保存</button>
-  <div class="sep"></div>
-  <button class="btn" id="btnUndo" onclick="undo()" title="Ctrl+Z" style="opacity:.4" disabled>↩</button>
-  <button class="btn" id="btnRedo" onclick="redo()" title="Ctrl+Y" style="opacity:.4" disabled>↪</button>
   <div class="sep"></div>
   <button class="btn" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
   <button class="btn" onclick="stopAll()" title="停止・先頭へ">■</button>
@@ -397,7 +396,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
       <label style="font-size:12px;color:#888;white-space:nowrap;">色を選択</label>
       <input type="color" id="solidColorPick" value="#000000" oninput="onSolidColorInput(this.value)" style="width:50px;height:30px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;">
-      <div id="solidPreview" style="flex:1;height:30px;border-radius:4px;border:1px solid #333;background:#000000;"></div>
     </div>
     <div style="margin-bottom:14px;">
       <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">平面名</label>
@@ -465,11 +463,7 @@ function applySnap(state){
   S.comps=state.comps; S.activeCompId=state.activeCompId;
   S.selId=null; renderCompTabs(); rebuildTl(); renderProps(); updateUndoUI();
 }
-function updateUndoUI(){
-  var u=g('btnUndo'),r=g('btnRedo');
-  if(u){u.disabled=_histIdx<=0;u.style.opacity=_histIdx<=0?'0.4':'1';}
-  if(r){r.disabled=_histIdx>=_hist.length-1;r.style.opacity=_histIdx>=_hist.length-1?'0.4':'1';}
-}
+function updateUndoUI(){}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function nid(){return S._nid++;}
@@ -994,7 +988,6 @@ function applyCompSize(cid){
 function createSolid(){
   var cnt=S.assets.filter(function(a){return a.type==='solid';}).length+1;
   g('solidColorPick').value='#000000';
-  g('solidPreview').style.background='#000000';
   var n=g('solidName');
   n.value='ブラック 平面 '+cnt; n._edited=false;
   g('solidModal').style.display='flex';
@@ -1002,7 +995,6 @@ function createSolid(){
 }
 function hideSolidModal(){g('solidModal').style.display='none';}
 function onSolidColorInput(v){
-  g('solidPreview').style.background=v;
   var n=g('solidName');
   if(!n._edited) n.value=hexToSolidName(v)+' 平面 '+(S.assets.filter(function(a){return a.type==='solid';}).length+1);
 }
@@ -1529,12 +1521,13 @@ function rebuildTl(){
       // KFダイヤモンドを追加（移動=赤・回転=青・拡縮=緑・透明度=黄、縦ずらし）
       if(clip.kf){
         var kfConf={
-          'pos':    ['kf-c-pos',     14,'位置'],
-          'rot':    ['kf-c-rot',     35,'回転'],
-          'scale':  ['kf-c-scale',   57,'拡縮'],
-          'opacity':['kf-c-opacity', 78,'透明度']
+          'pos':    ['kf-c-pos',     10,'位置'],
+          'rot':    ['kf-c-rot',     28,'回転'],
+          'scale':  ['kf-c-scale',   50,'拡縮'],
+          'opacity':['kf-c-opacity', 70,'透明度'],
+          'blur':   ['kf-c-blur',    85,'ぼかし']
         };
-        ['pos','rot','scale','opacity'].forEach(function(prop){
+        ['pos','rot','scale','opacity','blur'].forEach(function(prop){
           if(!clip.kf[prop]||!clip.kf[prop].length)return;
           var conf=kfConf[prop];
           clip.kf[prop].forEach(function(kp,ki){
@@ -1542,7 +1535,7 @@ function rebuildTl(){
             kd.className='kf-diamond '+conf[0];
             kd.style.left=(timeToX(clip.tStart+kp.t)-x)+'px';
             kd.style.top=conf[1]+'%';
-            var valLabel=prop==='pos'?('X:'+Math.round(kp.x||0)+' Y:'+Math.round(kp.y||0)):kp.v.toFixed(2);
+            var valLabel=prop==='pos'?('X:'+Math.round(kp.x||0)+' Y:'+Math.round(kp.y||0)):prop==='scale'?('X:'+(kp.sx||1).toFixed(2)+' Y:'+(kp.sy||1).toFixed(2)):kp.v.toFixed(2);
             kd.title=conf[2]+'='+valLabel+' @ '+fmtTime(kp.t)+'\nドラッグで時間移動';
             kd.dataset.prop=prop;kd.dataset.ki=ki;kd.dataset.clipId=clip.id;
             kd.onmousedown=(function(cprop,cki,cclipId,origT){
@@ -1693,6 +1686,54 @@ function doSeek(clientX){
 g('tlRight').addEventListener('scroll',function(){g('tlLblRows').scrollTop=g('tlRight').scrollTop;});
 
 // ─── Keyboard ─────────────────────────────────────────────────────────────
+// ─── Scrub drag on property labels ────────────────────────────────────────
+var _scrub=null;
+document.addEventListener('mousedown',function(e){
+  var lbl=e.target.classList&&e.target.classList.contains('scrub-lbl')?e.target:null;
+  if(!lbl)return;
+  var dual=lbl.dataset.scrubDual; // "id1,id2" 形式
+  var inputId=lbl.dataset.input;
+  if(!dual&&!inputId)return;
+  var primaryId=dual?dual.split(',')[0]:inputId;
+  var inp=g(primaryId);if(!inp)return;
+  e.preventDefault();
+  _scrub={inputId:inputId||null,dualIds:dual?dual.split(','):null,
+    lastX:e.clientX,lastTime:Date.now(),
+    step:Math.abs(parseFloat(inp.step)||1),
+    min:inp.min!==''?parseFloat(inp.min):-Infinity,
+    max:inp.max!==''?parseFloat(inp.max):Infinity};
+  document.body.style.cursor='ew-resize';
+},true);
+document.addEventListener('mousemove',function(e){
+  if(!_scrub)return;
+  var dx=e.clientX-_scrub.lastX;
+  if(dx===0)return;
+  var now=Date.now();
+  var dt=Math.max(1,now-_scrub.lastTime);
+  var speed=Math.abs(dx)/dt;
+  var factor=speed<0.3?0.2:speed<1?1:speed<3?4:12;
+  var delta=dx*_scrub.step*factor;
+  var dec=_scrub.step<0.01?3:_scrub.step<0.1?2:_scrub.step<1?1:0;
+  var ids=_scrub.dualIds||(_scrub.inputId?[_scrub.inputId]:[]);
+  ids.forEach(function(id){
+    var inp=g(id);if(!inp)return;
+    var cur=parseFloat(inp.value)||0;
+    var newVal=Math.min(_scrub.max,Math.max(_scrub.min,cur+delta));
+    inp.value=newVal.toFixed(dec);
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  _scrub.lastX=e.clientX;
+  _scrub.lastTime=now;
+},true);
+document.addEventListener('mouseup',function(){
+  if(_scrub){
+    var ids=_scrub.dualIds||(_scrub.inputId?[_scrub.inputId]:[]);
+    ids.forEach(function(id){var inp=g(id);if(inp)inp.dispatchEvent(new Event('change',{bubbles:true}));});
+    _scrub=null;
+    document.body.style.cursor='';
+  }
+},true);
+
 document.addEventListener('keydown',function(e){
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
   if(e.code==='Space'){e.preventDefault();togglePlay();}
@@ -1736,8 +1777,23 @@ function clipCurrentXY(clip,lt){
 function clipCurrentScale(clip,lt){
   return kfHas(clip,'scale')?kfInterp(clip.kf.scale,lt):(clip.scale||1);
 }
+function clipCurrentScaleX(clip,lt){
+  if(kfHas(clip,'scale'))return kfInterpScale(clip.kf.scale,lt,'sx');
+  return clip.scaleX!=null?clip.scaleX:(clip.scale||1);
+}
+function clipCurrentScaleY(clip,lt){
+  if(kfHas(clip,'scale'))return kfInterpScale(clip.kf.scale,lt,'sy');
+  return clip.scaleY!=null?clip.scaleY:(clip.scale||1);
+}
 function clipCurrentRot(clip,lt){
   return kfHas(clip,'rot')?kfInterp(clip.kf.rot,lt):(clip.rot||0);
+}
+// 回転を考慮してスクリーン座標→ローカル（クリップ中心基準）座標に変換
+function toLocalCoords(pos,cx,cy,rot){
+  var rad=rot*Math.PI/180;
+  var dx=pos.x-cx,dy=pos.y-cy;
+  var cos=Math.cos(-rad),sin=Math.sin(-rad);
+  return{x:dx*cos-dy*sin,y:dx*sin+dy*cos};
 }
 C.addEventListener('mousedown',function(e){
   if(_penMode){
@@ -1750,13 +1806,29 @@ C.addEventListener('mousedown',function(e){
   var pos=screenToCanvas(e);
   var nd=clipNatDims(clip);
   var pxy=clipCurrentXY(clip,ltc);
-  var sc=clipCurrentScale(clip,ltc);
+  var scX=clipCurrentScaleX(clip,ltc),scY=clipCurrentScaleY(clip,ltc);
+  var rot=clipCurrentRot(clip,ltc);
   var cx=CW/2+pxy.x,cy=CH/2+pxy.y;
-  var hw=nd.w/2*sc,hh=nd.h/2*sc,hr=handleRadius();
-  var corners=[{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}];
-  var hitCorner=corners.findIndex(function(c){return Math.abs(pos.x-c.x)<hr&&Math.abs(pos.y-c.y)<hr;});
-  if(hitCorner>=0){_tfDrag={type:'scale',startX:e.clientX,startY:e.clientY,origScale:sc,origX:pxy.x,origY:pxy.y,cornerX:corners[hitCorner].x,cornerY:corners[hitCorner].y,clipId:S.selId};e.preventDefault();e.stopPropagation();return;}
-  if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh){_tfDrag={type:'move',startX:e.clientX,startY:e.clientY,origX:pxy.x,origY:pxy.y,clipId:S.selId};e.preventDefault();e.stopPropagation();}
+  var hw=nd.w/2*scX,hh=nd.h/2*scY,hr=handleRadius();
+  // ローカル座標に変換（回転を打ち消す）
+  var loc=toLocalCoords(pos,cx,cy,rot);
+  var hitCorner=[{x:-hw,y:-hh},{x:hw,y:-hh},{x:-hw,y:hh},{x:hw,y:hh}].findIndex(function(c){return Math.abs(loc.x-c.x)<hr&&Math.abs(loc.y-c.y)<hr;});
+  if(hitCorner>=0){
+    // ワールド座標のコーナー位置を求める（ドラッグ距離計算用）
+    var rad=rot*Math.PI/180;
+    var cos=Math.cos(rad),sin=Math.sin(rad);
+    var lc=[{x:-hw,y:-hh},{x:hw,y:-hh},{x:-hw,y:hh},{x:hw,y:hh}][hitCorner];
+    var wcx=cx+lc.x*cos-lc.y*sin,wcy=cy+lc.x*sin+lc.y*cos;
+    _tfDrag={type:'scale',startX:e.clientX,startY:e.clientY,
+      origScaleX:scX,origScaleY:scY,origX:pxy.x,origY:pxy.y,
+      cornerX:wcx,cornerY:wcy,cornerLX:lc.x,cornerLY:lc.y,
+      clipId:S.selId,shiftKey:e.shiftKey,rot:rot};
+    e.preventDefault();e.stopPropagation();return;
+  }
+  if(loc.x>=-hw&&loc.x<=hw&&loc.y>=-hh&&loc.y<=hh){
+    _tfDrag={type:'move',startX:e.clientX,startY:e.clientY,origX:pxy.x,origY:pxy.y,clipId:S.selId};
+    e.preventDefault();e.stopPropagation();
+  }
 });
 C.addEventListener('mousemove',function(e){
   if(_penMode&&_penDrawing){penDraw(e);return;}
@@ -1766,12 +1838,13 @@ C.addEventListener('mousemove',function(e){
   var ltm=S.time-clip.tStart;if(ltm<0||ltm>=clip.dur){C.style.cursor='default';return;}
   var pos=screenToCanvas(e);var nd=clipNatDims(clip);
   var pxy2=clipCurrentXY(clip,ltm);
-  var sc2=clipCurrentScale(clip,ltm);
+  var scX2=clipCurrentScaleX(clip,ltm),scY2=clipCurrentScaleY(clip,ltm);
+  var rot2=clipCurrentRot(clip,ltm);
   var cx=CW/2+pxy2.x,cy=CH/2+pxy2.y;
-  var hw=nd.w/2*sc2,hh=nd.h/2*sc2,hr=handleRadius();
-  var corners=[{x:cx-hw,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx-hw,y:cy+hh},{x:cx+hw,y:cy+hh}];
-  if(corners.some(function(c){return Math.abs(pos.x-c.x)<hr&&Math.abs(pos.y-c.y)<hr;}))C.style.cursor='nwse-resize';
-  else if(pos.x>=cx-hw&&pos.x<=cx+hw&&pos.y>=cy-hh&&pos.y<=cy+hh)C.style.cursor='move';
+  var hw=nd.w/2*scX2,hh=nd.h/2*scY2,hr=handleRadius();
+  var loc=toLocalCoords(pos,cx,cy,rot2);
+  if([{x:-hw,y:-hh},{x:hw,y:-hh},{x:-hw,y:hh},{x:hw,y:hh}].some(function(c){return Math.abs(loc.x-c.x)<hr&&Math.abs(loc.y-c.y)<hr;}))C.style.cursor='nwse-resize';
+  else if(loc.x>=-hw&&loc.x<=hw&&loc.y>=-hh&&loc.y<=hh)C.style.cursor='move';
   else C.style.cursor='default';
 });
 C.addEventListener('mouseup',function(e){if(_penMode)stopPenStroke();});
@@ -1785,18 +1858,32 @@ function doTfDrag(e){
     clip.x=_tfDrag.origX+dx;clip.y=_tfDrag.origY+dy;
     if(kfHas(clip,'pos'))kfAddPos(clip,lt,clip.x,clip.y);
   } else {
-    var cx=CW/2+_tfDrag.origX,cy2=CH/2+_tfDrag.origY;
-    var od=Math.sqrt(Math.pow(_tfDrag.cornerX-cx,2)+Math.pow(_tfDrag.cornerY-cy2,2));
-    var nd=Math.sqrt(Math.pow(_tfDrag.cornerX+dx-cx,2)+Math.pow(_tfDrag.cornerY+dy-cy2,2));
-    if(od>0){
-      clip.scale=Math.max(0.01,_tfDrag.origScale*(nd/od));
-      if(kfHas(clip,'scale'))kfAdd(clip,'scale',lt,clip.scale);
+    // 回転を考慮してドラッグ量をローカル座標に変換
+    var rot=(_tfDrag.rot||0)*Math.PI/180;
+    var cos=Math.cos(-rot),sin=Math.sin(-rot);
+    var ldx=dx*cos-dy*sin,ldy=dx*sin+dy*cos;
+    var newLX=_tfDrag.cornerLX+ldx,newLY=_tfDrag.cornerLY+ldy;
+    var nd2=clipNatDims(clip);
+    var newSX=Math.max(0.01,Math.abs(newLX)/(nd2.w/2));
+    var newSY=Math.max(0.01,Math.abs(newLY)/(nd2.h/2));
+    if(e.shiftKey){
+      // Shift: 等倍維持
+      var origSX=_tfDrag.origScaleX,origSY=_tfDrag.origScaleY;
+      var ratio=origSY>0?origSY/origSX:1;
+      var unif=Math.max(newSX,newSY/(ratio||1));
+      clip.scaleX=unif;clip.scaleY=unif*(ratio||1);
+    } else {
+      clip.scaleX=newSX;clip.scaleY=newSY;
     }
+    // X=Yなら統一スケールに戻す（互換維持）
+    if(Math.abs(clip.scaleX-clip.scaleY)<0.001){clip.scale=clip.scaleX;clip.scaleX=null;clip.scaleY=null;}
+    else{clip.scale=clip.scaleX;}
+    if(kfHas(clip,'scale'))kfAddScale(clip,lt,clip.scaleX!=null?clip.scaleX:(clip.scale||1),clip.scaleY!=null?clip.scaleY:(clip.scale||1));
   }
-  // プロパティパネルの数値をリアルタイム更新
   var xEl=g('pkf_x');if(xEl)xEl.value=Math.round(clip.x||0);
   var yEl=g('pkf_y');if(yEl)yEl.value=Math.round(clip.y||0);
-  var scEl=g('pkf_scale');if(scEl)scEl.value=(clip.scale||1).toFixed(2);
+  var sxEl=g('pkf_scaleX');if(sxEl)sxEl.value=(clip.scaleX!=null?clip.scaleX:(clip.scale||1)).toFixed(2);
+  var syEl=g('pkf_scaleY');if(syEl)syEl.value=(clip.scaleY!=null?clip.scaleY:(clip.scale||1)).toFixed(2);
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────
@@ -1869,18 +1956,19 @@ function applyClipToCtx(ctx2,frame,clip,lt,compW,compH){
   var cx,cy;
   if(kfHas(clip,'pos')){cx=kfInterpXY(clip.kf.pos,lt,'x');cy=kfInterpXY(clip.kf.pos,lt,'y');}
   else{cx=clip.x||0;cy=clip.y||0;}
-  var sc=kfHas(clip,'scale')?kfInterp(clip.kf.scale,lt):(clip.scale||1);
+  var scX=kfHas(clip,'scale')?kfInterpScale(clip.kf.scale,lt,'sx'):(clip.scaleX!=null?clip.scaleX:(clip.scale||1));
+  var scY=kfHas(clip,'scale')?kfInterpScale(clip.kf.scale,lt,'sy'):(clip.scaleY!=null?clip.scaleY:(clip.scale||1));
   var rot=kfHas(clip,'rot')?kfInterp(clip.kf.rot,lt):(clip.rot||0);
   var blend=clip.blendMode||'source-over';
-  var blur=clip.blur||0;
+  var blurVal=kfHas(clip,'blur')?kfInterp(clip.kf.blur,lt):(clip.blur||0);
   ctx2.save();
   ctx2.globalAlpha=Math.max(0,Math.min(1,op));
   ctx2.globalCompositeOperation=blend;
   ctx2.translate(compW/2+cx,compH/2+cy);
   if(rot!==0)ctx2.rotate(rot*Math.PI/180);
-  ctx2.scale(sc,sc);
+  ctx2.scale(scX,scY);
   var nd=clipNatDims(clip);
-  if(blur>0){ctx2.filter='blur('+blur+'px)';ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);ctx2.filter='none';}
+  if(blurVal>0){ctx2.filter='blur('+blurVal+'px)';ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);ctx2.filter='none';}
   else{ctx2.drawImage(frame,-nd.w/2,-nd.h/2,nd.w,nd.h);}
   ctx2.restore();
 }
@@ -1906,10 +1994,10 @@ function drawTransformHandles(clip){
   var nd=clipNatDims(clip);
   var lt2=S.time-clip.tStart;
   var pxy=clipCurrentXY(clip,lt2);
-  var sc=clipCurrentScale(clip,lt2);
+  var scX=clipCurrentScaleX(clip,lt2),scY=clipCurrentScaleY(clip,lt2);
   var rot=clipCurrentRot(clip,lt2);
   var cx=CW/2+pxy.x,cy=CH/2+pxy.y;
-  var hw=nd.w/2*sc,hh=nd.h/2*sc,hr=handleRadius()*0.9;
+  var hw=nd.w/2*scX,hh=nd.h/2*scY,hr=handleRadius()*0.9;
   ctx.save();
   ctx.translate(cx,cy);
   if(rot!==0)ctx.rotate(rot*Math.PI/180);
@@ -2013,7 +2101,7 @@ function renderProps(){
     var toggleCall="toggleKf('"+prop+"',"+min+","+max+","+def+")";
     var addCall="addKfNow('"+prop+"',"+min+","+max+","+def+")";
     var setCall="setKfNow('"+prop+"',parseFloat(this.value),"+min+","+max+","+def+")";
-    var propColor={'opacity':'#ffcc00','rot':'#4488ff','scale':'#44cc44'}[prop]||'#ffcc00';
+    var propColor={'opacity':'#ffcc00','rot':'#4488ff','scale':'#44cc44','blur':'#00ccdd'}[prop]||'#ffcc00';
     var kfListHtml='';
     if(on&&clip.kf[prop].length){
       kfListHtml='<div class="kf-list" id="kfl_'+prop+'">';
@@ -2031,7 +2119,7 @@ function renderProps(){
       kfListHtml='<div class="kf-list" id="kfl_'+prop+'"></div>';
     }
     return '<div class="kf-row">'
-      +'<span style="font-size:11px;color:#666;flex:1;white-space:nowrap">'
+      +'<span class="scrub-lbl" data-input="pkf_'+prop+'" style="font-size:11px;color:#666;flex:1;white-space:nowrap">'
       +(on?'<span style="color:'+propColor+';font-size:9px;margin-right:3px">◆</span>':'')+label+'</span>'
       +'<input type="number" id="pkf_'+prop+'" value="'+curVal.toFixed(dec)+'" min="'+min+'" max="'+max+'" step="'+step+'"'
       +' oninput="'+setCall+'" onchange="pushHistory()"'
@@ -2076,11 +2164,11 @@ function renderProps(){
       +(on?'<button class="kf-btn" onclick="'+addCall+'">+</button>':'')
       +'</div>'
       +'<div style="display:grid;grid-template-columns:18px 1fr;gap:2px 4px;margin-bottom:4px;align-items:center;">'
-      +'<span style="font-size:10px;color:#888;text-align:right">X</span>'
+      +'<span class="scrub-lbl" data-input="pkf_x" style="font-size:10px;color:#888;text-align:right">X</span>'
       +'<input type="number" id="pkf_x" value="'+Math.round(curX)+'" step="1"'
       +' oninput="setPosKfNow(\'x\',parseFloat(this.value))" onchange="pushHistory();updateKfListUI()"'
       +' style="'+inputStyle+'">'
-      +'<span style="font-size:10px;color:#888;text-align:right">Y</span>'
+      +'<span class="scrub-lbl" data-input="pkf_y" style="font-size:10px;color:#888;text-align:right">Y</span>'
       +'<input type="number" id="pkf_y" value="'+Math.round(curY)+'" step="1"'
       +' oninput="setPosKfNow(\'y\',parseFloat(this.value))" onchange="pushHistory();updateKfListUI()"'
       +' style="'+inputStyle+'">'
@@ -2088,6 +2176,53 @@ function renderProps(){
       +'<div style="font-size:10px;color:#666;margin-bottom:2px">'
       +'プレビューでドラッグ移動可'
       +'</div>'
+      +kfListHtml;
+  }
+
+  // 拡縮X/Y分離行
+  function mkScaleXYRow(){
+    var on=kfHas(clip,'scale');
+    var curSX=on?kfInterpScale(clip.kf.scale,lt,'sx'):(clip.scaleX!=null?clip.scaleX:(clip.scale||1));
+    var curSY=on?kfInterpScale(clip.kf.scale,lt,'sy'):(clip.scaleY!=null?clip.scaleY:(clip.scale||1));
+    var propColor='#44cc44';
+    var bdr='border:1px solid '+(on?propColor:'#2e2e2e');
+    var col='color:'+(on?propColor:'#aaa');
+    var inSt=bdr+';'+col+';background:#111;border-radius:3px;padding:2px 6px;font-size:12px;font-family:monospace;text-align:right;width:100%;box-sizing:border-box;';
+    var kfListHtml='';
+    if(on&&clip.kf.scale.length){
+      kfListHtml='<div class="kf-list" id="kfl_scale">';
+      clip.kf.scale.forEach(function(kp,ki){
+        var ic=Math.abs(kp.t-lt)<0.001;
+        kfListHtml+='<div class="kf-item'+(ic?' cur':'')+'" onclick="seekToKf(\'scale\','+ki+')"'
+          +(ic?' style="background:#001a00;color:'+propColor+'"':'')+' >'
+          +'<span style="color:'+propColor+';font-size:9px">◆</span>'
+          +'<span>'+fmtTime(kp.t)+'</span>'
+          +'<span>X:'+(kp.sx||1).toFixed(2)+' Y:'+(kp.sy||1).toFixed(2)+'</span>'
+          +'<span onclick="event.stopPropagation();removeKf(\'scale\','+ki+')" style="color:#553333;cursor:pointer;padding:0 3px">✕</span>'
+          +'</div>';
+      });
+      kfListHtml+='</div>';
+    } else if(on){
+      kfListHtml='<div class="kf-list" id="kfl_scale"></div>';
+    }
+    return '<div class="kf-row" style="margin-bottom:3px;">'
+      +'<span class="scrub-lbl" data-scrub-dual="pkf_scaleX,pkf_scaleY" style="font-size:11px;color:#666;flex:1;cursor:ew-resize" title="ドラッグでXY等倍">'
+      +(on?'<span style="color:'+propColor+';font-size:9px;margin-right:3px">◆</span>':'')+'拡縮</span>'
+      +'<button class="kf-btn'+(on?' on':'')+'" onclick="toggleKf(\'scale\',0.01,10,1)"'
+      +' style="'+(on?'border-color:'+propColor+';color:'+propColor+';background:#001a00':'')+'">'+(on?'◆':'◇')+'</button>'
+      +(on?'<button class="kf-btn" onclick="addKfNow(\'scale\',0.01,10,1)">+</button>':'')
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:18px 1fr;gap:2px 4px;margin-bottom:4px;align-items:center;">'
+      +'<span class="scrub-lbl" data-input="pkf_scaleX" style="font-size:10px;color:#888;text-align:right">X</span>'
+      +'<input type="number" id="pkf_scaleX" value="'+curSX.toFixed(2)+'" step="0.01" min="0.01" max="10"'
+      +' oninput="setScaleKfNow(\'sx\',parseFloat(this.value))" onchange="pushHistory()"'
+      +' style="'+inSt+'">'
+      +'<span class="scrub-lbl" data-input="pkf_scaleY" style="font-size:10px;color:#888;text-align:right">Y</span>'
+      +'<input type="number" id="pkf_scaleY" value="'+curSY.toFixed(2)+'" step="0.01" min="0.01" max="10"'
+      +' oninput="setScaleKfNow(\'sy\',parseFloat(this.value))" onchange="pushHistory()"'
+      +' style="'+inSt+'">'
+      +'</div>'
+      +'<div style="font-size:10px;color:#666;margin-bottom:4px">コーナードラッグで変形 / Shift+ドラッグで等倍</div>'
       +kfListHtml;
   }
 
@@ -2159,24 +2294,22 @@ function renderProps(){
     +textSection
     +'<div class="ps">配置</div>'
     +mkTimeRow('長さ','pD',fs,Math.min(Math.max(aDur,1),60),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
-    +solidSection
-    +'<div class="ps">エフェクト</div>'
-    +mkRow('ガウスぼかし','pBlur',0,100,1,clip.blur||0,"setProp('blur',+this.value);g('pBlur').textContent=(+this.value).toFixed(0);")
-    +'<div class="ps">タイムリマップ</div>'
     +mkRow('スピード','pSpd',0.1,10,0.05,clip.speed||1,"setProp('speed',+this.value);g('pSpd').textContent=(+this.value).toFixed(2);rebuildTl();")
+    +solidSection
     +'<div class="ps">移動 / 回転 / 拡縮 / 透明度 <span style="font-size:10px;color:#444">◆=KF</span></div>'
     +mkPosKfRow()
     +mkKfRow('回転','rot',-360,360,0.1,clip.rot||0)
-    +mkKfRow('拡縮','scale',0.01,10,0.01,clip.scale||1)
-    +mkKfRow('透明度','opacity',0,1,0.01,clip.opacity!==undefined?clip.opacity:1)
-    +(function(){var nd=clipNatDims(clip);var sc=clip.scale||1;return '<div class="pr"><div class="pl" style="color:#555">実サイズ <span style="color:#888;font-family:monospace;font-size:10px">'+Math.round(nd.w*sc)+'×'+Math.round(nd.h*sc)+'px</span></div></div>';})()
-    +'<button class="btn sm" style="margin-bottom:4px" onclick="resetTransform()">トランスフォームをリセット</button>'
+    +mkScaleXYRow()
+    +mkKfRow('透明度','opacity',0,1,0.1,clip.opacity!==undefined?clip.opacity:1)
+    +(function(){var nd=clipNatDims(clip);var scX=clip.scaleX!=null?clip.scaleX:(clip.scale||1);var scY=clip.scaleY!=null?clip.scaleY:(clip.scale||1);return '<div class="pr"><div class="pl" style="color:#555">実サイズ <span style="color:#888;font-family:monospace;font-size:10px">'+Math.round(nd.w*scX)+'×'+Math.round(nd.h*scY)+'px</span></div></div>';})()
+    +'<div class="ps">エフェクト</div>'
+    +mkKfRow('ガウスぼかし','blur',0,100,0.1,clip.blur||0)
     +'<div class="ps">クリップカラー</div>'
     +'<div class="pr" style="display:flex;align-items:center;gap:8px;">'
     +'<input type="color" id="pClipColor" value="'+(clip.clipColor||(CLIP_COLORS[clip.id%CLIP_COLORS.length]||'#1b3a68'))+'" oninput="setClipColor(this.value)" onchange="pushHistory()" style="width:44px;height:28px;border:1px solid #333;background:#111;cursor:pointer;border-radius:4px;padding:1px;" title="クリップの表示カラー">'
-    +'<button class="btn sm" onclick="setClipColor(null)" title="デフォルトに戻す" style="font-size:10px">リセット</button>'
     +'</div>'
-    +'<button class="btn sm red" style="margin-top:6px" onclick="deleteSelClip()">クリップ削除</button>';
+    +'<button class="btn sm" style="margin-top:8px;margin-bottom:2px;width:100%" onclick="resetAllProps()">プロパティのリセット</button>'
+    +'<button class="btn sm red" style="margin-top:4px" onclick="deleteSelClip()">クリップ削除</button>';
 }
 function doKfDrag(e){
   if(!_kfDrag)return;
@@ -2190,7 +2323,24 @@ function doKfDrag(e){
   rebuildTl();
 }
 
-function resetTransform(){var clip=findClip(S.selId);if(!clip)return;pushHistory();clip.x=0;clip.y=0;clip.rot=0;clip.scale=1;clip.opacity=1;if(clip.kf){delete clip.kf.pos;delete clip.kf.rot;delete clip.kf.scale;delete clip.kf.opacity;}rebuildTl();renderProps();}
+function resetTransform(){resetAllProps();}
+function resetAllProps(){
+  var clip=findClip(S.selId);if(!clip)return;
+  pushHistory();
+  // トランスフォーム
+  clip.x=0;clip.y=0;clip.rot=0;clip.scale=1;clip.scaleX=null;clip.scaleY=null;clip.opacity=1;
+  // エフェクト
+  clip.blur=0;
+  // タイムリマップ
+  clip.speed=1;
+  // 合成モード
+  clip.blendMode='source-over';
+  // クリップカラー
+  clip.clipColor=null;
+  // 全KF削除
+  if(clip.kf){delete clip.kf.pos;delete clip.kf.rot;delete clip.kf.scale;delete clip.kf.opacity;delete clip.kf.blur;}
+  rebuildTl();renderProps();
+}
 
 // ─── Keyframe functions ───────────────────────────────────────────────────
 function kfInterp(arr,t){
@@ -2233,20 +2383,41 @@ function kfAddPos(clip,t,xv,yv){
   var existing=clip.kf.pos.find(function(k){return Math.abs(k.t-t)<0.0001;});
   if(existing){existing.x=xv;existing.y=yv;}else{clip.kf.pos.push({t:t,x:xv,y:yv});clip.kf.pos.sort(function(a,b){return a.t-b.t;});}
 }
+// スケールXY専用補間（{t,sx,sy}形式）
+function kfInterpScale(arr,t,axis){
+  if(!arr||!arr.length)return 1;
+  if(arr.length===1)return arr[0][axis]||1;
+  if(t<=arr[0].t)return arr[0][axis]||1;
+  if(t>=arr[arr.length-1].t)return arr[arr.length-1][axis]||1;
+  for(var i=0;i<arr.length-1;i++){
+    if(t>=arr[i].t&&t<=arr[i+1].t){
+      var f=(t-arr[i].t)/(arr[i+1].t-arr[i].t);
+      return (arr[i][axis]||1)+((arr[i+1][axis]||1)-(arr[i][axis]||1))*f;
+    }
+  }
+  return arr[arr.length-1][axis]||1;
+}
+function kfAddScale(clip,t,sxv,syv){
+  if(!clip.kf)clip.kf={};
+  if(!clip.kf.scale)clip.kf.scale=[];
+  var existing=clip.kf.scale.find(function(k){return Math.abs(k.t-t)<0.0001;});
+  if(existing){existing.sx=sxv;existing.sy=syv;}
+  else{clip.kf.scale.push({t:t,sx:sxv,sy:syv});clip.kf.scale.sort(function(a,b){return a.t-b.t;});}
+}
 function toggleKf(prop,min,max,def){
   var clip=findClip(S.selId);if(!clip)return;
   var lt=snapToFrame(Math.max(0,S.time-clip.tStart));
   if(kfHas(clip,prop)){
-    // 無効化: 現在時刻の補間値を通常プロパティに反映
     if(prop==='pos'){clip.x=kfInterpXY(clip.kf.pos,lt,'x');clip.y=kfInterpXY(clip.kf.pos,lt,'y');}
+    else if(prop==='scale'){clip.scaleX=kfInterpScale(clip.kf.scale,lt,'sx');clip.scaleY=kfInterpScale(clip.kf.scale,lt,'sy');}
     else if(prop==='rot')clip.rot=kfInterp(clip.kf.rot,lt);
     else if(prop==='opacity')clip.opacity=kfInterp(clip.kf.opacity,lt);
-    else if(prop==='scale')clip.scale=kfInterp(clip.kf.scale,lt);
+    else if(prop==='blur')clip.blur=kfInterp(clip.kf.blur,lt);
     delete clip.kf[prop];
   } else {
-    // 有効化: 現在の値でKFを1つ追加
     if(prop==='pos'){kfAddPos(clip,lt,clip.x||0,clip.y||0);}
-    else{var curVal=prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):(clip.scale||1);kfAdd(clip,prop,lt,curVal);}
+    else if(prop==='scale'){kfAddScale(clip,lt,clip.scaleX!=null?clip.scaleX:(clip.scale||1),clip.scaleY!=null?clip.scaleY:(clip.scale||1));}
+    else{var curVal=prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):prop==='blur'?(clip.blur||0):(clip.scale||1);kfAdd(clip,prop,lt,curVal);}
   }
   pushHistory();rebuildTl();renderProps();
 }
@@ -2257,8 +2428,12 @@ function addKfNow(prop,min,max,def){
     var cx=kfHas(clip,'pos')?kfInterpXY(clip.kf.pos,lt,'x'):(clip.x||0);
     var cy=kfHas(clip,'pos')?kfInterpXY(clip.kf.pos,lt,'y'):(clip.y||0);
     kfAddPos(clip,lt,cx,cy);
+  } else if(prop==='scale'){
+    var csx=kfHas(clip,'scale')?kfInterpScale(clip.kf.scale,lt,'sx'):(clip.scaleX!=null?clip.scaleX:(clip.scale||1));
+    var csy=kfHas(clip,'scale')?kfInterpScale(clip.kf.scale,lt,'sy'):(clip.scaleY!=null?clip.scaleY:(clip.scale||1));
+    kfAddScale(clip,lt,csx,csy);
   } else {
-    var curVal=kfHas(clip,prop)?kfInterp(clip.kf[prop],lt):(prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):(clip.scale||1));
+    var curVal=kfHas(clip,prop)?kfInterp(clip.kf[prop],lt):(prop==='opacity'?(clip.opacity!==undefined?clip.opacity:1):prop==='rot'?(clip.rot||0):prop==='blur'?(clip.blur||0):(clip.scale||1));
     kfAdd(clip,prop,lt,curVal);
   }
   pushHistory();rebuildTl();renderProps();
@@ -2267,7 +2442,7 @@ function setKfNow(prop,val,min,max,def){
   var clip=findClip(S.selId);if(!clip)return;
   var lt=snapToFrame(Math.max(0,S.time-clip.tStart));
   if(kfHas(clip,prop)){kfAdd(clip,prop,lt,val);}
-  else{if(prop==='opacity')clip.opacity=val;else if(prop==='rot')clip.rot=val;else if(prop==='scale')clip.scale=val;}
+  else{if(prop==='opacity')clip.opacity=val;else if(prop==='rot')clip.rot=val;else if(prop==='scale')clip.scale=val;else if(prop==='blur')clip.blur=val;}
   rebuildTl();
   updateKfListUI(); // KFリストだけ部分更新（入力フィールドはそのまま）
 }
@@ -2303,30 +2478,59 @@ function updateKfListUI(){
     });
     posEl.innerHTML=html;
   }
-  // rot/scale/opacity リスト更新
-  ['rot','scale','opacity'].forEach(function(prop){
+  // rot/opacity/blur リスト更新
+  ['rot','opacity','blur'].forEach(function(prop){
     var el=g('kfl_'+prop);
     if(!el||!clip.kf||!clip.kf[prop])return;
-    var color={'rot':'#4488ff','scale':'#44cc44','opacity':'#ffcc00'}[prop];
+    var color={'rot':'#4488ff','opacity':'#ffcc00','blur':'#00ccdd'}[prop];
     var html='';
     clip.kf[prop].forEach(function(kp,ki){
       var isCur=Math.abs(kp.t-lt)<0.001;
       var dec=prop==='rot'?1:2;
+      var suffix=prop==='rot'?'°':prop==='blur'?'px':'';
       html+='<div class="kf-item'+(isCur?' cur':'')+'" onclick="seekToKf(\''+prop+'\','+ki+')"'
         +(isCur?' style="background:#1a1a00;color:'+color+'"':'')+' >'
         +'<span style="color:'+color+';font-size:9px">◆</span>'
-        +'<span>'+fmtTime(kp.t)+'</span><span>'+kp.v.toFixed(dec)+'°</span>'
+        +'<span>'+fmtTime(kp.t)+'</span><span>'+kp.v.toFixed(dec)+suffix+'</span>'
         +'<span onclick="event.stopPropagation();removeKf(\''+prop+'\','+ki+')" style="color:#553333;cursor:pointer;padding:0 3px">✕</span>'
         +'</div>';
     });
     el.innerHTML=html;
   });
+  // scale リスト更新（{t,sx,sy}形式）
+  var scaleEl=g('kfl_scale');
+  if(scaleEl&&clip.kf&&clip.kf.scale){
+    var html2='';
+    clip.kf.scale.forEach(function(kp,ki){
+      var isCur=Math.abs(kp.t-lt)<0.001;
+      html2+='<div class="kf-item'+(isCur?' cur':'')+'" onclick="seekToKf(\'scale\','+ki+')"'
+        +(isCur?' style="background:#001a00;color:#44cc44"':'')+' >'
+        +'<span style="color:#44cc44;font-size:9px">◆</span>'
+        +'<span>'+fmtTime(kp.t)+'</span>'
+        +'<span>X:'+(kp.sx||1).toFixed(2)+' Y:'+(kp.sy||1).toFixed(2)+'</span>'
+        +'<span onclick="event.stopPropagation();removeKf(\'scale\','+ki+')" style="color:#553333;cursor:pointer;padding:0 3px">✕</span>'
+        +'</div>';
+    });
+    scaleEl.innerHTML=html2;
+  }
 }
 function seekToKf(prop,idx){
   var clip=findClip(S.selId);if(!clip||!clip.kf||!clip.kf[prop])return;
   var kp=clip.kf[prop][idx];if(!kp)return;
   S.time=snapToFrame(clip.tStart+kp.t);
   syncMedia();updatePlayhead();updateTimeDisp();renderProps();
+}
+function setScaleKfNow(axis,val){
+  var clip=findClip(S.selId);if(!clip)return;
+  var lt=snapToFrame(Math.max(0,S.time-clip.tStart));
+  if(axis==='sx')clip.scaleX=val;else clip.scaleY=val;
+  if(kfHas(clip,'scale')){
+    var csx=axis==='sx'?val:kfInterpScale(clip.kf.scale,lt,'sx');
+    var csy=axis==='sy'?val:kfInterpScale(clip.kf.scale,lt,'sy');
+    kfAddScale(clip,lt,csx,csy);
+  }
+  rebuildTl();
+  updateKfListUI();
 }
 function removeKf(prop,idx){
   var clip=findClip(S.selId);if(!clip||!clip.kf||!clip.kf[prop])return;
