@@ -155,6 +155,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 <body>
 <div id="app">
 <div id="toolbar">
+  <button class="btn" onclick="openProject()">📂 読込</button>
+  <button class="btn" onclick="saveProject()">💾 保存</button>
+  <button class="btn" onclick="collectAndSave()">💾 収集保存</button>
+  <div class="sep"></div>
   <button class="btn" id="btnUndo" onclick="undo()" title="Ctrl+Z" style="opacity:.4" disabled>↩</button>
   <button class="btn" id="btnRedo" onclick="redo()" title="Ctrl+Y" style="opacity:.4" disabled>↪</button>
   <div class="sep"></div>
@@ -183,10 +187,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   <label class="lbl" id="penSizeWrap" style="display:flex;gap:3px">サイズ<input type="range" id="penSize" min="1" max="40" value="4" style="width:60px"></label>
   <button class="btn" onclick="openTextModal()" title="テキストレイヤーを追加">T+</button>
   <button class="btn" onclick="addMarkerAtTime()" title="マーカーを追加 (M)">◆M</button>
-  <div class="sep"></div>
-  <button class="btn" onclick="saveProject()">💾 保存</button>
-  <button class="btn" onclick="collectAndSave()">💾 収集保存</button>
-  <button class="btn" onclick="openProject()">📂 読込</button>
 </div>
 
 <div id="main">
@@ -1035,7 +1035,7 @@ var _copiedClip=null;
 function mkComp(name,w,h){
   return {id:nid(),name:name||'Comp'+(S.comps.length+1),dur:10,
     width:w||CW,height:h||CH,
-    vLayers:[{id:nid(),name:'V3',visible:true},{id:nid(),name:'V2',visible:true},{id:nid(),name:'V1',visible:true}],
+    vLayers:[{id:nid(),name:'V2',visible:true},{id:nid(),name:'V1',visible:true}],
     aTracks:[{id:nid(),name:'A1',visible:true}],
     clips:[],aClips:[],markers:[]};
 }
@@ -2155,12 +2155,11 @@ function renderProps(){
   blendSel+='</select></div>';
 
   pi.innerHTML=compRefNote
+    +blendSel
     +textSection
     +'<div class="ps">配置</div>'
     +mkTimeRow('長さ','pD',fs,Math.min(Math.max(aDur,1),60),clip.dur,"setProp('dur',+this.value);g('pD').textContent=fmtTime(+this.value);rebuildTl();")
     +solidSection
-    +'<div class="ps">合成</div>'
-    +blendSel
     +'<div class="ps">エフェクト</div>'
     +mkRow('ガウスぼかし','pBlur',0,100,1,clip.blur||0,"setProp('blur',+this.value);g('pBlur').textContent=(+this.value).toFixed(0);")
     +'<div class="ps">タイムリマップ</div>'
