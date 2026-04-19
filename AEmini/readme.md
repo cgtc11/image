@@ -1,3 +1,5 @@
+https://htmlpreview.github.io/?https://github.com/cgtc11/image/blob/main/AEmini/AEmini.html
+
 # AEmini 機能説明書
 
 AEminiはブラウザ（Chrome推奨）で動作する軽量タイムライン動画編集ソフトです。  
