@@ -1,15 +1,12 @@
 # AEmini 機能説明書
 
-AEminiはブラウザ（Chrome推奨）で動作する軽量タイムライン動画エディタです。  
-After Effectsとの双方向JSON連携（Mini2AE.jsx）に対応しています。
-
+AEminiはブラウザ（Chrome推奨）で動作する軽量タイムライン動画編集ソフトです。  
+After Effectsとの双方向JSON連携（Mini2AE.jsx）に簡易対応しています。
+凄い機能はないです。あくまでも簡易動画制作支援ソフトです。HTMLで無料なんだもの。
 <img alt="AEmini" src="https://github.com/cgtc11/image/blob/main/AEmini_ScreenShot1.png" /></br>
 </br>
-
 \---
-
 ## 画面構成
-
 ```
 ┌────────────────────────────────────────────────────┐
 │ ツールバー                        　　　 　通常/簡易 │
@@ -19,7 +16,6 @@ After Effectsとの双方向JSON連携（Mini2AE.jsx）に対応しています�
 │          │ タイムライン              │              │
 └──────────┴──────────────────────────┴──────────────┘
 ```
-
 \---
 
 ## ツールバー
