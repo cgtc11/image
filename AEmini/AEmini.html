@@ -24,6 +24,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .lbl input[type=range]{accent-color:#2e6ea6;width:80px}
 #timeDisp{font-family:monospace;font-size:13px;color:#5af;min-width:100px;letter-spacing:.05em}
 #main{display:flex;flex:1;overflow:hidden}
+/* ドロップオーバーレイ */
+#dropOverlay{display:none;position:fixed;inset:0;background:rgba(46,110,166,.35);border:3px dashed #7ec8ff;z-index:8888;align-items:center;justify-content:center;pointer-events:none;}
+#dropOverlay.active{display:flex;}
+#dropOverlayMsg{color:#7ec8ff;font-size:22px;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,.8);}
+/* 簡易モード */
+body.simple-mode #assets,
+body.simple-mode #props,
+body.simple-mode #compTabs,
+body.simple-mode #tlHdr,
+body.simple-mode #tlLeft{display:none!important;}
+body.simple-mode #tl{border-top:none;}
+/* 簡易モード：ルーラー行だけ表示（クリップ行は隠す） */
+body.simple-mode #tlBody{max-height:26px;overflow:hidden;flex-shrink:0;position:relative;}
+body.simple-mode #tlRight{overflow:hidden;}
+/* 簡易モード：ズームボタンをルーラー右端にオーバーレイ */
+#tlZoomBtn{display:none;}
+body.simple-mode #tlZoomBtn{
+  display:flex;align-items:center;
+  position:absolute;right:0;top:0;z-index:30;height:26px;
+  padding:0 8px;background:rgba(24,24,24,.95);border-left:1px solid #333;
+  font-size:11px;color:#888;cursor:pointer;
+}
+body.simple-mode #tlZoomBtn:hover{color:#ddd;background:#1e1e1e;}
+#btnSimpleMode{margin-left:auto;}
 /* Assets */
 #assets{width:180px;flex-shrink:0;background:#141414;border-right:1px solid #222;display:flex;flex-direction:column;overflow:hidden}
 #assets-hdr{padding:5px 8px;font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;justify-content:space-between}
@@ -69,6 +93,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .stub-reimport{font-size:10px;color:#c08030;cursor:pointer;border:1px solid #4a3010;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap}
 .stub-reimport:hover{background:#2a1a00}
 .assets-btns{padding:5px;border-top:1px solid #1e1e1e;display:flex;flex-direction:column;gap:3px}
+/* 素材パネルのドロップゾーン */
+#assets.asset-drop-hi{outline:2px dashed #4488ff;outline-offset:-2px;background:#0a1a2a;}
+#assetDropMsg{display:none;padding:8px 6px;font-size:10px;color:#446;text-align:center;border-top:1px dashed #223;}
+#assets.asset-drop-hi #assetDropMsg{display:block;color:#4488ff;}
 /* Center */
 #center{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #pvBar{display:flex;align-items:center;gap:4px;padding:3px 8px;background:#141414;border-bottom:1px solid #1e1e1e;flex-shrink:0}
@@ -186,12 +214,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   <label class="lbl" id="penSizeWrap" style="display:flex;gap:3px">サイズ<input type="range" id="penSize" min="1" max="40" value="4" style="width:60px"></label>
   <button class="btn" onclick="openTextModal()" title="テキストレイヤーを追加">T+</button>
   <button class="btn" onclick="addMarkerAtTime()" title="マーカーを追加 (M)">◆M</button>
+  <button class="btn" id="btnSimpleMode" onclick="toggleSimpleMode()" title="簡易モード切替">通常</button>
 </div>
+<div id="dropOverlay"><div id="dropOverlayMsg">📂 ドロップして素材を追加</div></div>
 
 <div id="main">
   <div id="assets">
     <div id="assets-hdr">素材パネル <button class="btn sm" onclick="createFolder()" title="新規フォルダ">📁+</button></div>
     <div id="assetList"></div>
+    <div id="assetDropMsg">📂 ここにファイル／フォルダをドロップ</div>
     <div class="assets-btns">
       <button class="btn sm" onclick="importImgFSA()">単/連番素材を追加</button>
       <button class="btn sm" onclick="importVidFSA()">MP4動画を追加</button>
@@ -223,7 +254,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
         <span>素材→ドラッグ配置 ／ クリップドラッグ=移動 ／ 端=トリミング ／ Shift+端=タイムリマップ ／ Shift+ドラッグ=スナップ ／ Shift+Ctrl+D=分割</span>
         <button class="btn sm" onclick="addVLayer()">+映像</button>
         <button class="btn sm" onclick="addATrack()">+音声</button>
-        <label class="lbl" style="gap:3px;flex-shrink:0">ズーム<input id="zoomRange" type="range" min="10" max="700" value="120" style="width:70px" oninput="S.pxPerSec=+this.value;rebuildTl()"></label>
+        <label class="lbl" style="gap:3px;flex-shrink:0"><span onclick="fitTlZoom()" title="クリックで全体をウィンドウ幅に合わせる" style="cursor:pointer;text-decoration:underline dotted">ズーム</span><input id="zoomRange" type="range" min="10" max="700" value="120" style="width:70px" oninput="S.pxPerSec=+this.value;rebuildTl()"></label>
       </div>
       <div id="tlBody">
         <div id="tlLeft">
@@ -236,6 +267,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
             <div id="playhead"></div>
           </div>
         </div>
+        <button id="tlZoomBtn" onclick="fitTlZoom()" title="タイムライン全体を表示幅に合わせる">ズーム</button>
       </div>
     </div>
   </div>
@@ -482,6 +514,16 @@ function maxSrc(a){
   return a.duration||9999;
 }
 function tick(){return new Promise(function(r){setTimeout(r,0);});}
+function fitTlZoom(){
+  var comp=AC();if(!comp)return;
+  var dur=comp.dur||10;
+  var tlW=g('tlRight').clientWidth||600;
+  var newPps=Math.floor((tlW-20)/dur); // 少し余白を残す
+  newPps=Math.max(10,Math.min(700,newPps));
+  S.pxPerSec=newPps;
+  var zr=g('zoomRange');if(zr)zr.value=newPps;
+  rebuildTl();
+}
 function snapToFrame(t){if(!S.fps)return t;return Math.round(t*S.fps)/S.fps;}
 function setActiveDur(v){var c=AC();if(c){c.dur=+v;}rebuildTl();}
 
@@ -630,6 +672,151 @@ async function importAudFSA(){
   }catch(e){if(e.name!=='AbortError'){console.warn(e);g('fi-aud').click();}}
 }
 g('fi-seq').onchange=async function(){var f=Array.from(this.files);if(!f.length)return;await processImgItems(f,false);this.value='';};
+
+// ─── Drag & Drop（全画面・ファイルのみ）────────────────────────────────────
+var _dropActive=false;
+document.addEventListener('dragover',function(e){
+  // 外部ファイルのドラッグ時のみオーバーレイ表示
+  var items=e.dataTransfer&&e.dataTransfer.items;
+  if(!items||!items.length)return;
+  var hasFile=false;
+  for(var i=0;i<items.length;i++){if(items[i].kind==='file'){hasFile=true;break;}}
+  if(!hasFile)return;
+  e.preventDefault();
+  if(!_dropActive){_dropActive=true;g('dropOverlay').classList.add('active');}
+});
+document.addEventListener('dragleave',function(e){
+  if(e.relatedTarget===null){_dropActive=false;g('dropOverlay').classList.remove('active');}
+});
+document.addEventListener('drop',async function(e){
+  e.preventDefault();
+  _dropActive=false;g('dropOverlay').classList.remove('active');
+  var files=Array.from(e.dataTransfer.files);
+  if(!files.length)return;
+  await processDroppedFiles(files);
+});
+
+async function processDroppedFiles(files){
+  var imgFiles=[],vidFiles=[],audFiles=[];
+  files.forEach(function(f){
+    var t=f.type;
+    if(t.startsWith('image/'))imgFiles.push(f);
+    else if(t.startsWith('video/'))vidFiles.push(f);
+    else if(t.startsWith('audio/'))audFiles.push(f);
+  });
+
+  // 画像を連番グループに分割（末尾3桁以上の数字 → 同グループ）
+  var seqGroups={};// baseName → [file, ...]
+  imgFiles.forEach(function(f){
+    var m=f.name.match(/^(.*?)(\d{3,})(\.[^.]+)$/);
+    var key=m?(m[1]+m[3]):f.name;// グループキー = プレフィックス+拡張子
+    if(!seqGroups[key])seqGroups[key]=[];
+    seqGroups[key].push(f);
+  });
+
+  var addedAssets=[];// {aid, type, asset} 追加した素材
+
+  // 画像グループを処理
+  for(var key in seqGroups){
+    if(!seqGroups.hasOwnProperty(key))continue;
+    var group=seqGroups[key].sort(function(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true});});
+    var isSeq=group.length>1;
+    showLoad(isSeq?'連番読み込み中...':'画像読み込み中...','0/'+group.length,0);
+    var frames=[];
+    for(var i=0;i<group.length;i++){
+      try{frames.push(await createImageBitmap(group[i]));}catch(e){}
+      if(i%8===0){setLoad((i+1)/group.length,null,(i+1)+'/'+group.length);await tick();}
+    }
+    hideLoad();
+    if(!frames.length)continue;
+    var aid=nid();
+    var asset={id:aid,type:isSeq?'seq':'img',name:group[0].name,displayName:group[0].name,
+      frames:frames,seqFps:S.fps,duration:isSeq?frames.length/S.fps:9999,frameCount:frames.length};
+    S.assets.push(asset);
+    addedAssets.push({aid:aid,asset:asset});
+  }
+
+  // 動画を処理
+  for(var vi=0;vi<vidFiles.length;vi++){
+    var f=vidFiles[vi];
+    var url=URL.createObjectURL(f);
+    var ve=document.createElement('video');ve.src=url;ve.preload='auto';
+    await new Promise(function(r){ve.onloadedmetadata=r;ve.onerror=r;});
+    var aid=nid();
+    var asset={id:aid,type:'vid',name:f.name,displayName:f.name,videoEl:ve,duration:ve.duration,srcUrl:url};
+    S.assets.push(asset);
+    addedAssets.push({aid:aid,asset:asset});
+  }
+
+  // 音声を処理
+  for(var ai2=0;ai2<audFiles.length;ai2++){
+    var f2=audFiles[ai2];
+    var url2=URL.createObjectURL(f2);
+    var ae=new Audio(url2);ae.preload='auto';
+    await new Promise(function(r){ae.onloadedmetadata=r;ae.onerror=r;});
+    var aid=nid();
+    var asset={id:aid,type:'aud',name:f2.name,displayName:f2.name,audioEl:ae,duration:ae.duration,srcUrl:url2};
+    S.assets.push(asset);
+    addedAssets.push({aid:aid,asset:asset});
+  }
+
+  renderAssets();
+
+  // ─ 特殊条件: 素材が1つ & アクティブコンポが空 → 素材サイズで新規コンポ作成＋配置 ─
+  if(addedAssets.length===1){
+    var comp=AC();
+    var isEmpty=comp&&comp.clips.length===0&&comp.aClips.length===0;
+    if(isEmpty){
+      var a2=addedAssets[0].asset;
+      var natW2=CW,natH2=CH;
+      if((a2.type==='img'||a2.type==='seq')&&a2.frames&&a2.frames.length){
+        natW2=a2.frames[0].width;natH2=a2.frames[0].height;
+      } else if(a2.type==='vid'&&a2.videoEl){
+        natW2=a2.videoEl.videoWidth||CW;natH2=a2.videoEl.videoHeight||CH;
+      }
+      if(natW2>0&&natH2>0&&(natW2!==CW||natH2!==CH)){
+        // 素材サイズでコンポを更新
+        comp.width=natW2;comp.height=natH2;
+        CW=natW2;CH=natH2;
+        C.width=CW;C.height=CH;
+        var ac2=AC();if(ac2){ac2.width=CW;ac2.height=CH;}
+        setPvZoom('fit');
+        var inResW=g('inResW'),inResH=g('inResH');
+        if(inResW)inResW.value=CW;if(inResH)inResH.value=CH;
+      }
+      // 先頭レイヤーに配置
+      if(comp.vLayers.length===0)comp.vLayers.push({id:nid(),name:'V1',visible:true});
+      if(a2.type==='aud'){
+        if(comp.aTracks.length===0)comp.aTracks.push({id:nid(),name:'A1',visible:true});
+        comp.aClips.push(mkAClip(addedAssets[0].aid,comp.aTracks[0].id,0));
+      } else {
+        comp.clips.push(mkVClip(addedAssets[0].aid,comp.vLayers[0].id,0));
+      }
+      // コンポ尺を素材尺に合わせる（静止画は10秒固定）
+      var clipDur=0;
+      if(a2.type==='vid'&&a2.duration)clipDur=a2.duration;
+      else if(a2.type==='aud'&&a2.duration)clipDur=a2.duration;
+      else if(a2.type==='seq'&&a2.duration)clipDur=a2.duration;
+      else if(a2.type==='img')clipDur=10;
+      if(clipDur>0){
+        comp.dur=clipDur;
+        var durInput=g('inDur');if(durInput)durInput.value=Math.round(clipDur);
+      }
+      rebuildTl();pushHistory();
+      setTimeout(function(){fitTlZoom();},50);
+    }
+  }
+}
+
+// ─── 簡易モード ───────────────────────────────────────────────────────────
+var _simpleMode=false;
+function toggleSimpleMode(){
+  _simpleMode=!_simpleMode;
+  document.body.classList.toggle('simple-mode',_simpleMode);
+  g('btnSimpleMode').textContent=_simpleMode?'簡易':'通常';
+  g('btnSimpleMode').classList.toggle('act',_simpleMode);
+  setTimeout(function(){setPvZoom('fit');},50);
+}
 g('fi-vid').onchange=function(){var f=this.files[0];if(!f)return;var url=URL.createObjectURL(f);var ve=document.createElement('video');ve.src=url;ve.preload='auto';ve.onloadedmetadata=function(){S.assets.push({id:nid(),type:'vid',name:f.name,displayName:f.name,videoEl:ve,duration:ve.duration,srcUrl:url});renderAssets();};this.value='';};
 g('fi-aud').onchange=function(){var f=this.files[0];if(!f)return;var url=URL.createObjectURL(f);var ae=new Audio(url);ae.preload='auto';ae.onloadedmetadata=function(){S.assets.push({id:nid(),type:'aud',name:f.name,displayName:f.name,audioEl:ae,duration:ae.duration,srcUrl:url});renderAssets();};this.value='';};
 
@@ -1479,7 +1666,7 @@ function rebuildTl(){
     row.ondragover=function(e){e.preventDefault();row.classList.add('drop-hi');};
     row.ondragleave=function(){row.classList.remove('drop-hi');};
     row.ondrop=function(e){
-      e.preventDefault();row.classList.remove('drop-hi');
+      e.preventDefault();e.stopPropagation();row.classList.remove('drop-hi');
       var right=g('tlRight');
       var tStart=xToTime(e.clientX-right.getBoundingClientRect().left+right.scrollLeft);
       // Comp clip drop
